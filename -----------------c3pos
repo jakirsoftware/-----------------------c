@@ -1,0 +1,94 @@
+//https://chatgpt.com/c/67ac0640-dbe0-8008-9c9c-241a9a50736e
+//openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU')
+//1FaX7GR7c4g-kb_V6caYsv1Upc5_wUmFa
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate().setTitle("Cart")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function getProducts() {
+  const sheet = SpreadsheetApp.openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU').getSheetByName('Products');
+  const data = sheet.getRange('A2:C' + sheet.getLastRow()).getValues();
+  return data.map(row => ({ name: row[0], image: row[1], price: row[2] }));
+}
+
+function saveOrderAndGeneratePDF(orderItems) {
+  const ss = SpreadsheetApp.openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU');
+  const ordersSheet = ss.getSheetByName('Orders');
+  const controlSheet = ss.getSheetByName('Control');
+
+  // Fetch Headlines
+  const headline1 = controlSheet.getRange('A2').getValue();
+  const headline2 = controlSheet.getRange('B2').getValue();
+  const headline3 = controlSheet.getRange('C2').getValue();
+
+  // Generate Invoice Number (Timestamp-based)
+  const invoiceNumber = "INV-" + new Date().getTime();
+
+  // Get Table Number (Assumes all items have the same table number)
+  const tableNumber = orderItems.length > 0 ? orderItems[0].tableNumber : "N/A";
+
+  // Save Order Data to 'Orders' Sheet
+  const timestamp = new Date();
+  orderItems.forEach(item => {
+    ordersSheet.appendRow([invoiceNumber, timestamp, tableNumber, item.productName, item.quantity, item.price, item.quantity * item.price]);
+  });
+
+  // Generate PDF
+  const pdfUrl = generateInvoicePDF(invoiceNumber, tableNumber, orderItems, headline1, headline2, headline3);
+  return pdfUrl;
+}
+
+function generateInvoicePDF(invoiceNumber, tableNumber, orderItems, headline1, headline2, headline3) {
+  const folder = DriveApp.getFolderById('1FaX7GR7c4g-kb_V6caYsv1Upc5_wUmFa'); // Change this to your folder ID
+  const file = folder.createFile(
+    "Invoice_" + invoiceNumber + ".pdf",
+    createPOSPDFContent(invoiceNumber, tableNumber, orderItems, headline1, headline2, headline3),
+    MimeType.PDF
+  );
+  return file.getUrl();
+}
+
+function createPOSPDFContent(invoiceNumber, tableNumber, orderItems, headline1, headline2, headline3) {
+  let total = 0;
+  let content = `
+    <div style="width: 58mm; font-size: 12px; font-family: monospace; text-align: center;">
+      <h2>${headline1}</h2>
+      <h3>${headline2}</h3>
+      <h4>${headline3}</h4>
+      <p>Invoice: <strong>${invoiceNumber}</strong></p>
+      <p>Table: <strong>${tableNumber}</strong></p>
+      <hr>
+      <table style="width: 100%; font-size: 10px; border-collapse: collapse;">
+        <tr>
+          <th style="text-align: left;">Item</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Total</th>
+        </tr>`;
+
+  orderItems.forEach(item => {
+    let itemTotal = item.quantity * item.price;
+    total += itemTotal;
+    content += `
+        <tr>
+          <td>${item.productName}</td>
+          <td>${item.quantity}</td>
+          <td>$${item.price.toFixed(2)}</td>
+          <td>$${itemTotal.toFixed(2)}</td>
+        </tr>`;
+  });
+
+  content += `
+        <tr>
+          <td colspan="3"><strong>Grand Total</strong></td>
+          <td><strong>$${total.toFixed(2)}</strong></td>
+        </tr>
+      </table>
+      <hr>
+      <p>Thank you for your order!</p>
+    </div>`;
+
+  return content;
+}
