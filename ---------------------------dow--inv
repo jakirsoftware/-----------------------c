@@ -29,27 +29,32 @@ function getInvoiceLink(searchTerm) {
 }
 --------------------------------------
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-      <meta charset="UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invoice Download</title>
     <script>
         function searchInvoice() {
             var searchTerm = document.getElementById("invoiceNumber").value.trim();
-            
+            var messageContainer = document.getElementById("message");
+            var linkContainer = document.getElementById("downloadLink");
+
+            // Clear previous messages
+            messageContainer.innerText = "";
+            linkContainer.innerHTML = "";
+
             if (searchTerm.length < 4 || isNaN(searchTerm)) {
-                alert("Please enter at least the last 4 digits of the invoice number.");
+                messageContainer.innerText = "⚠️ Please enter at least the last 4 digits of the invoice number.";
                 return;
             }
 
             google.script.run.withSuccessHandler(function(url) {
-                var linkContainer = document.getElementById("downloadLink");
                 if (url) {
                     linkContainer.innerHTML = `<a href="${url}" target="_blank">
                         <button>Download Invoice</button></a>`;
                 } else {
-                    linkContainer.innerHTML = "<p>No matching invoice found.</p>";
+                    messageContainer.innerText = "❌ No matching invoice found.";
                 }
             }).getInvoiceLink(searchTerm);
         }
@@ -60,7 +65,8 @@ function getInvoiceLink(searchTerm) {
     <h2>Download Invoice</h2>
     <input type="text" id="invoiceNumber" placeholder="Enter at least last 4 digits">
     <button onclick="searchInvoice()">Search</button>
+    <p id="message" style="color: red;"></p>
     <div id="downloadLink"></div>
-  </div>
+    <div>
 </body>
 </html>
