@@ -1,0 +1,81 @@
+//https://chatgpt.com/c/67ac0640-dbe0-8008-9c9c-241a9a50736e
+//openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU')
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate().setTitle("Cart")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// Fetch products from "Products" sheet
+function getProducts() {
+  const sheet = SpreadsheetApp.openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU').getSheetByName("Products");
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
+  let products = [];
+
+  data.forEach(row => {
+    if (row[0]) {
+      products.push({
+        name: row[0],
+        image: row[1],
+        price: parseFloat(row[2])
+      });
+    }
+  });
+
+  return products;
+}
+
+function saveOrderAndGeneratePDF(orderData) {
+    var sheet = SpreadsheetApp.openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU').getSheetByName("Orders");
+    if (!sheet) return "Error: Orders sheet not found.";
+
+    // Generate a unique invoice number (YYYYMMDD-HHMMSS)
+    var now = new Date();
+    var invoiceNumber = now.getFullYear() + 
+                        ('0' + (now.getMonth() + 1)).slice(-2) + 
+                        ('0' + now.getDate()).slice(-2) + "-" + 
+                        ('0' + now.getHours()).slice(-2) + 
+                        ('0' + now.getMinutes()).slice(-2) + 
+                        ('0' + now.getSeconds()).slice(-2);
+
+    var grandTotal = 0;
+    var tableNumber = orderData[0].tableNumber; // Get the table number from the first item
+
+    orderData.forEach(item => {
+        var total = item.price * item.quantity;
+        grandTotal += total;
+        sheet.appendRow([invoiceNumber, tableNumber, item.productName, item.price, item.quantity, total]);
+    });
+
+    return generateInvoicePDF(invoiceNumber, tableNumber, orderData, grandTotal);
+}
+
+function generateInvoicePDF(invoiceNumber, tableNumber, orderData, grandTotal) {
+    var doc = DocumentApp.create("Invoice_" + invoiceNumber);
+    var body = doc.getBody();
+
+    // Invoice Header
+    body.appendParagraph("Invoice Number: " + invoiceNumber).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+    body.appendParagraph("Date: " + new Date().toLocaleString());
+    body.appendParagraph("Table Number: " + tableNumber).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+
+    // Product Table
+    var table = [['Product Name', 'Price', 'Quantity', 'Total']];
+    orderData.forEach(item => {
+        table.push([
+            item.productName,
+            "$" + item.price.toFixed(2),
+            item.quantity,
+            "$" + (item.price * item.quantity).toFixed(2)
+        ]);
+    });
+
+    body.appendTable(table);
+    body.appendParagraph("Grand Total: $" + grandTotal.toFixed(2)).setBold(true);
+
+    doc.saveAndClose();
+    var pdfBlob = DriveApp.getFileById(doc.getId()).getAs('application/pdf');
+    var pdfFile = DriveApp.createFile(pdfBlob);
+    
+    return pdfFile.getUrl();
+}
