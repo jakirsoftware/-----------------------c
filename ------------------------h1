@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cart</title>
+    <title>Product Order System</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
+            background-color: #f4f4f4;
+            margin: 20px;
         }
         .product-container {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* Two columns */
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             max-width: 600px;
             margin: auto;
@@ -21,8 +23,8 @@
             padding: 10px;
             text-align: center;
             border-radius: 5px;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
             background-color: #fff;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
         }
         .product img {
             max-width: 100px;
@@ -36,7 +38,7 @@
             margin-bottom: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
-            background-color: #f9f9f9;
+            background-color: #fff;
         }
         .cart-item span {
             flex-grow: 1;
@@ -70,18 +72,47 @@
             margin-top: 10px;
         }
         .message {
-            background-color: #28a745;
-            color: white;
             padding: 10px;
             margin-bottom: 10px;
             border-radius: 5px;
             font-size: 1.1em;
-            display: none; /* Initially hidden */
+            display: none;
+        }
+        .success {
+            background-color: #28a745;
+            color: white;
         }
         .error {
             background-color: #dc3545;
+            color: white;
+        }
+        .table-warning {
+            color: red;
+            font-size: 0.9em;
+            display: none;
         }
     </style>
+</head>
+<body>
+
+    <div id="messageContainer" class="message"></div>
+
+    <h1>Product List</h1>
+    <input type="text" id="searchBox" placeholder="Search products..." onkeyup="searchProducts()">
+    <div id="productList"></div>
+
+    <h2>My Cart List</h2>
+    <div id="cartList"></div>
+    <div id="totalAmount" class="total">Total: 0.00 Tk.</div>
+
+    <div>
+        <input type="text" id="tableNumber" placeholder="Enter name or number" oninput="clearWarning()">
+        <div id="tableWarning" class="table-warning">⚠ Please enter name or number.</div>
+    </div>
+
+    <button class="submit-btn" onclick="submitOrder()">Submit Order</button>
+    <div id="invoiceNumber" class="invoice"></div>
+
     <script>
         let products = [];
         let cart = [];
@@ -117,12 +148,9 @@
 
         function searchProducts() {
             let searchTerm = document.getElementById("searchBox").value.toLowerCase();
-            
             if (searchTerm === "") {
-                // If search box is empty, display all products
                 renderProductList(products);
             } else {
-                // Filter products by search term
                 let filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm));
                 renderProductList(filteredProducts);
             }
@@ -163,76 +191,41 @@
             document.getElementById("totalAmount").innerText = `Total: ${totalAmount.toFixed(2)} Tk.`;
         }
 
-        function increaseQuantity(index) {
-            cart[index].quantity++;
-            updateCart();
-        }
-
-        function decreaseQuantity(index) {
-            if (cart[index].quantity > 1) {
-                cart[index].quantity--;
-            } else {
-                cart.splice(index, 1);
-            }
-            updateCart();
-        }
-
-        function editQuantity(index, newQuantity) {
-            let qty = parseInt(newQuantity);
-            if (qty > 0) {
-                cart[index].quantity = qty;
-            } else {
-                cart.splice(index, 1);
-            }
-            updateCart();
-        }
-
-        function removeFromCart(index) {
-            cart.splice(index, 1);
-            updateCart();
+        function clearWarning() {
+            document.getElementById("tableWarning").style.display = "none";
         }
 
         function submitOrder() {
-            if (cart.length === 0) {
-                showMessage("Your cart is empty!", "error");
+            let tableNumber = document.getElementById("tableNumber").value;
+
+            if (!tableNumber.trim()) {
+                document.getElementById("tableWarning").style.display = "block";
                 return;
             }
 
-            google.script.run.withSuccessHandler(orderSuccess).saveOrder(cart);
-        }
+            let now = new Date();
+            let invoiceNumber = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
 
-        function orderSuccess(invoiceNumber) {
-            showMessage(`Order Submitted Successfully! Invoice: ${invoiceNumber}`, "success");
-            document.getElementById("invoiceNumber").innerText = `Invoice Number: ${invoiceNumber}`;
-            cart = [];
-            updateCart();
-        }
+            document.getElementById("invoiceNumber").innerText = `Invoice: ${invoiceNumber}`;
 
-        function showMessage(message, type) {
-            let messageContainer = document.getElementById("messageContainer");
-            messageContainer.innerText = message;
-            messageContainer.className = `message ${type}`;
-            messageContainer.style.display = "block";
-            setTimeout(() => {
-                messageContainer.style.display = "none";
-            }, 3000);
+            let orderData = cart.map(item => ({
+                productName: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                tableNumber: tableNumber,
+                invoice: invoiceNumber
+            }));
+
+            google.script.run.withSuccessHandler(() => {
+                cart = [];
+                updateCart();
+                document.getElementById("tableNumber").value = "";
+                document.getElementById("invoiceNumber").innerText = "";
+            }).saveOrder(orderData);
         }
 
         window.onload = fetchProducts;
     </script>
-</head>
-<body>
-    <div id="messageContainer" class="message"></div>
 
-    <h1>Product List</h1>
-    <input type="text" id="searchBox" placeholder="Search products..." onkeyup="searchProducts()">
-    <div id="productList"></div>
-    
-    <h2>My Cart</h2>
-    <div id="cartList"></div><br>
-    <input align="center" id="tn" type="text" placeholder="Name or Table Number"><br>
-    <div id="totalAmount" class="total">Total: 0 Tk.</div>
-    <button class="submit-btn" onclick="submitOrder()">Submit Order</button>
-    <div id="invoiceNumber" class="invoice"></div>
 </body>
 </html>
