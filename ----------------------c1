@@ -1,0 +1,41 @@
+//https://chatgpt.com/c/67ac0640-dbe0-8008-9c9c-241a9a50736e
+//openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU')
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate().setTitle("Cart")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+
+function getProducts() {
+  var sheet = SpreadsheetApp.openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU').getSheetByName("Products");
+  var data = sheet.getRange("A2:C" + sheet.getLastRow()).getValues();
+  
+  var products = data.map(row => ({
+    name: row[0],
+    image: row[1],
+    price: row[2]
+  }));
+
+  return products;
+}
+
+
+
+
+function saveOrder(orderData) {
+  var sheet = SpreadsheetApp.openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU').getSheetByName("Orders");
+  if (!sheet) {
+    sheet = SpreadsheetApp.openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU').insertSheet("Orders");
+    sheet.appendRow(["Invoice", "Date", "Product", "Quantity", "Price", "Total"]);
+  }
+
+  var timestamp = new Date();
+  var invoiceNumber = "INV-" + timestamp.getTime(); // Unique Invoice Number
+
+  orderData.forEach(item => {
+    sheet.appendRow([invoiceNumber, timestamp, item.name, item.quantity, item.price, (item.price * item.quantity)]);
+  });
+
+  return invoiceNumber; // Return the generated invoice number
+}
