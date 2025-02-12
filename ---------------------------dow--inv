@@ -1,0 +1,66 @@
+//https://https://chatgpt.com/c/67ace741-1b00-8003-990d-a9ff6c2ab215
+//soft
+//1FaX7GR7c4g-kb_V6caYsv1Upc5_wUmFa
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate().setTitle("Cart")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+
+function getInvoiceLink(searchTerm) {
+  var folderId = "1FaX7GR7c4g-kb_V6caYsv1Upc5_wUmFa"; // Replace with your Google Drive Folder ID
+  var folder = DriveApp.getFolderById(folderId);
+  var files = folder.getFiles();
+  
+  searchTerm = searchTerm.trim(); // Remove extra spaces
+  
+  while (files.hasNext()) {
+    var file = files.next();
+    var fileName = file.getName();
+
+    // Check if the filename contains the search term and ends with .pdf
+    if (fileName.includes(searchTerm) && fileName.toLowerCase().endsWith(".pdf")) {
+      return file.getUrl(); // Return the download link if found
+    }
+  }
+  
+  return ""; // No matching file found
+}
+--------------------------------------
+<!DOCTYPE html>
+<html>
+<head>
+      <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Download</title>
+    <script>
+        function searchInvoice() {
+            var searchTerm = document.getElementById("invoiceNumber").value.trim();
+            
+            if (searchTerm.length < 4 || isNaN(searchTerm)) {
+                alert("Please enter at least the last 4 digits of the invoice number.");
+                return;
+            }
+
+            google.script.run.withSuccessHandler(function(url) {
+                var linkContainer = document.getElementById("downloadLink");
+                if (url) {
+                    linkContainer.innerHTML = `<a href="${url}" target="_blank">
+                        <button>Download Invoice</button></a>`;
+                } else {
+                    linkContainer.innerHTML = "<p>No matching invoice found.</p>";
+                }
+            }).getInvoiceLink(searchTerm);
+        }
+    </script>
+</head>
+<body>
+  <div align="center">
+    <h2>Download Invoice</h2>
+    <input type="text" id="invoiceNumber" placeholder="Enter at least last 4 digits">
+    <button onclick="searchInvoice()">Search</button>
+    <div id="downloadLink"></div>
+  </div>
+</body>
+</html>
