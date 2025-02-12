@@ -1,7 +1,7 @@
 //https://chatgpt.com/c/67ac0640-dbe0-8008-9c9c-241a9a50736e
 //openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU')
 function doGet() {
-  return HtmlService.createTemplateFromFile('index1').evaluate().setTitle("Cart")
+  return HtmlService.createTemplateFromFile('index').evaluate().setTitle("Cart")
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
