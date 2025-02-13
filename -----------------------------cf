@@ -129,12 +129,13 @@
             renderProductList(data);
         }
 
-        function renderProductList(data) {
+         function renderProductList(data) {
             let productList = document.getElementById("productList");
-            productList.innerHTML = '<div class="product-container">';
-            
+            productList.innerHTML = "";
+            let productHTML = '<div class="product-container">';
+
             data.forEach((product, index) => {
-                productList.innerHTML += `
+                productHTML += `
                     <div class="product">
                         <img src="${product.image}" alt="${product.name}"><br>
                         <strong>${product.name}</strong><br>
@@ -144,9 +145,9 @@
                 `;
             });
 
-            productList.innerHTML += '</div>';
+            productHTML += '</div>';
+            productList.innerHTML = productHTML;
         }
-
         function searchProducts() {
             let searchTerm = document.getElementById("searchBox").value.toLowerCase();
             let filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm));
@@ -266,7 +267,7 @@
 
 </body>
 </html>
---------------------------------------------------
+------------------------------------
 //https://chatgpt.com/c/67ac0640-dbe0-8008-9c9c-241a9a50736e
 //https://chatgpt.com/c/67ad4fc1-2410-8008-a152-2a2907767e25
 //openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU')
@@ -301,7 +302,7 @@ function saveOrder(orderData) {
   const ss = SpreadsheetApp.openById('1Bfq89wi90O6w_RFLquFLXtyrD8YUXAQZroc0Cv5FxJU');
   const sheet = ss.getSheetByName("Orders");
   const controlSheet = ss.getSheetByName("Control");
-  const folderId = "1FaX7GR7c4g-kb_V6caYsv1Upc5_wUmFa"; // Change to your Drive folder ID
+  const folderId = "1qAGhuBx4GjBZ4-rvA040EKsXoCcCJplb"; // Change to your Drive folder ID
   const folder = DriveApp.getFolderById(folderId);
   
   // Generate unique invoice number based on timestamp
