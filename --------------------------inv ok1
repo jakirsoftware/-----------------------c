@@ -5,6 +5,12 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+function getContacts() {
+  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Contact');
+  let contacts = sheet.getRange('A2:A').getValues().filter(String).map(function(row) { return row[0]; });
+  return contacts;
+}
+
 function saveInvoice(invoiceData) {
   let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Invoices");
 
@@ -32,13 +38,29 @@ function saveInvoice(invoiceData) {
 
   return "Invoice Saved Successfully!";
 }
--------------------------------------
+----------------------------
 <!DOCTYPE html>
 <html>
 <head>
   <title>Invoice System</title>
   <script>
     let selectedInvoiceType = "";
+
+    // Set today's date by default
+    window.onload = function() {
+      document.getElementById("invoiceDate").value = new Date().toISOString().split('T')[0]; // Set default date to today's date
+
+      // Fetch contacts dynamically from the Google Sheets 'Contact' sheet
+      google.script.run.withSuccessHandler(function(contacts) {
+        const contactSelect = document.getElementById("contact");
+        contacts.forEach(contact => {
+          let option = document.createElement("option");
+          option.value = contact;
+          option.textContent = contact;
+          contactSelect.appendChild(option);
+        });
+      }).getContacts();
+    }
 
     function setInvoiceType(type) {
       selectedInvoiceType = type;
@@ -191,7 +213,7 @@ function saveInvoice(invoiceData) {
     <label>Date:</label>
     <input type="date" id="invoiceDate">
     <label>Contact:</label>
-    <input type="text" id="contact" placeholder="Enter Contact">
+    <select id="contact"><option value="">Select Contact</option></select>
     <label>Invoice #:</label>
     <input type="text" id="invoiceNumber" placeholder="Enter Invoice No.">
     <label>Description:</label>
