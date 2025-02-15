@@ -5,50 +5,126 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+
+function getContacts() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Contact");
+  var contacts = sheet.getRange("A2:A").getValues();
+  return contacts.flat();  // Flatten array
+}
+
 function getProducts() {
-  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Product');
-  let products = sheet.getRange('A2:B').getValues().filter(String);  // Product Name and Price
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Product");
+  var products = sheet.getRange("A2:B").getValues();
   return products;
 }
 
-function getContacts() {
-  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Contact');
-  let contacts = sheet.getRange('A2:A').getValues().filter(String);
-  return contacts;
-}
-
 function saveInvoice(invoiceData) {
-  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Invoices');
-  let invoiceInfo = invoiceData.invoiceInfo;
-  let products = invoiceData.products;
-
-  let lastRow = sheet.getLastRow() + 1;
-
-  // Insert Invoice Data
-  sheet.getRange(lastRow, 1).setValue(invoiceInfo.date);
-  sheet.getRange(lastRow, 2).setValue(invoiceInfo.invoiceType);
-  sheet.getRange(lastRow, 3).setValue(invoiceInfo.contact);
-  sheet.getRange(lastRow, 4).setValue(invoiceInfo.invoiceNumber);
-  sheet.getRange(lastRow, 5).setValue(invoiceInfo.description);
-
-  // Insert Products Data
-  let productStartCol = 6; // Column for products
-  products.forEach((product, index) => {
-    sheet.getRange(lastRow, productStartCol + index * 4).setValue(product.productName);
-    sheet.getRange(lastRow, productStartCol + 1 + index * 4).setValue(product.price);
-    sheet.getRange(lastRow, productStartCol + 2 + index * 4).setValue(product.quantity);
-    sheet.getRange(lastRow, productStartCol + 3 + index * 4).setValue(product.total);
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Invoices");
+  var row = sheet.getLastRow() + 1;
+  
+  // Save Invoice Info
+  sheet.getRange(row, 1).setValue(invoiceData.invoiceInfo.invoiceType);
+  sheet.getRange(row, 2).setValue(invoiceData.invoiceInfo.date);
+  sheet.getRange(row, 3).setValue(invoiceData.invoiceInfo.contact);
+  sheet.getRange(row, 4).setValue(invoiceData.invoiceInfo.invoiceNumber);
+  sheet.getRange(row, 5).setValue(invoiceData.invoiceInfo.description);
+  
+  // Save Products Data
+  invoiceData.products.forEach((product, index) => {
+    sheet.getRange(row, 6 + index).setValue(product.productName);
+    sheet.getRange(row, 6 + invoiceData.products.length + index).setValue(product.price);
+    sheet.getRange(row, 6 + (invoiceData.products.length * 2) + index).setValue(product.quantity);
+    sheet.getRange(row, 6 + (invoiceData.products.length * 3) + index).setValue(product.total);
   });
 
-  return 'Invoice Saved Successfully!';
+  // Save Discount Info
+  sheet.getRange(row, 6 + (invoiceData.products.length * 4)).setValue(invoiceData.discount.type);
+  sheet.getRange(row, 7 + (invoiceData.products.length * 4)).setValue(invoiceData.discount.value);
 }
--------------------------------------
+------------------
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Invoice System</title>
+  <style>
+    .hidden { display: none; }
+    .btn { margin: 5px; padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    .btn:hover { background-color: #45a049; }
+    table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+    table, th, td { border: 1px solid black; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Create Invoice</h2>
+  
+  <label>Invoice Type:</label>
+  <button class="btn" onclick="setInvoiceType('Purchase')">Purchase</button>
+  <button class="btn" onclick="setInvoiceType('Sale')">Sale</button>
+  <br><br>
+  
+  <label>Date:</label>
+  <input type="date" id="invoiceDate">
+  <br><br>
+  
+  <label>Contact:</label>
+  <select id="contact">
+    <option value="">Select Contact</option>
+  </select>
+  <br><br>
+  
+  <label>Invoice Number:</label>
+  <input type="text" id="invoiceNumber" placeholder="Enter Invoice Number">
+  <br><br>
+  
+  <label>Description:</label>
+  <input type="text" id="description" placeholder="Enter Description">
+  <br><br>
+  
+  <label>Discount Type:</label>
+  <button class="btn" onclick="setDiscountType('Fixed')">Fixed</button>
+  <button class="btn" onclick="setDiscountType('Percent')">Percent</button>
+  <br><br>
+  
+  <label for="discountValue">Discount Value:</label>
+  <input type="number" id="discountValue" placeholder="Enter discount value" />
+  <br><br>
+  
+  <h4>Products</h4>
+  <table id="productTable">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Total</th>
+        <th>Remove</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  
+  <button class="btn" onclick="addProductRow()">Add Product</button>
+  <br><br>
+  
+  <div id="grandTotal">Grand Total: $0.00</div>
+  
+  <br><br>
+  
+  <button class="btn" onclick="saveInvoice()">Submit Invoice</button>
+  <br><br>
+  
+  <div id="successMessage" class="hidden">
+    <p>Invoice Submitted Successfully!</p>
+  </div>
+  
+  <br>
+  
+  <button class="btn" onclick="printInvoice()">Print Invoice</button>
+
   <script>
     let selectedInvoiceType = "";
+    let discountType = "Fixed"; // Default discount type
+    let discountValue = 0; // Default discount value
+    let productData = []; // Store product data once on page load
 
     window.onload = function() {
       document.getElementById("invoiceDate").value = new Date().toISOString().split('T')[0]; // Set default date to today's date
@@ -66,8 +142,9 @@ function saveInvoice(invoiceData) {
 
       // Fetch products from the 'Product' sheet
       google.script.run.withSuccessHandler(function(products) {
-        const productSelect = document.querySelectorAll(".product-select");
-        productSelect.forEach(select => {
+        productData = products; // Store product data in memory
+        const productSelects = document.querySelectorAll(".product-select");
+        productSelects.forEach(select => {
           products.forEach(product => {
             let option = document.createElement("option");
             option.value = product[0];  // Product Name
@@ -78,11 +155,13 @@ function saveInvoice(invoiceData) {
       }).getProducts();
     }
 
+    // Set Invoice Type (Purchase or Sale)
     function setInvoiceType(type) {
       selectedInvoiceType = type;
       document.getElementById("selectedType").innerText = type;
     }
 
+    // Calculate the total amount after applying the discount
     function calculateTotal() {
       let rows = document.querySelectorAll("#productTable tbody tr");
       let grandTotal = 0;
@@ -96,9 +175,20 @@ function saveInvoice(invoiceData) {
         grandTotal += total;
       });
 
+      // Apply Discount
+      if (discountType === "Percent") {
+        grandTotal -= (grandTotal * discountValue / 100);
+      } else if (discountType === "Fixed") {
+        grandTotal -= discountValue;
+      }
+
+      // Ensure grand total doesn't go negative
+      grandTotal = grandTotal < 0 ? 0 : grandTotal;
+
       document.getElementById("grandTotal").innerText = "Grand Total: $" + grandTotal.toFixed(2);
     }
 
+    // Add a new product row to the invoice
     function addProductRow() {
       let tableBody = document.querySelector("#productTable tbody");
       let newRow = document.createElement("tr");
@@ -114,28 +204,39 @@ function saveInvoice(invoiceData) {
       `;
 
       tableBody.appendChild(newRow);
+
+      // Re-populate product options in the new row
+      let productSelect = newRow.querySelector(".product-select");
+      productData.forEach(product => {
+        let option = document.createElement("option");
+        option.value = product[0];  // Product Name
+        option.textContent = product[0];  // Product Name
+        productSelect.appendChild(option);
+      });
     }
 
+    // Remove a product row from the invoice
     function removeRow(button) {
       button.parentElement.parentElement.remove();
       calculateTotal();
     }
 
+    // Update the product price when a product is selected
     function updatePrice(select) {
       let productName = select.value;
       let row = select.closest('tr');
       let priceInput = row.querySelector(".price");
 
-      google.script.run.withSuccessHandler(function(products) {
-        let product = products.find(p => p[0] === productName);
-        if (product) {
-          priceInput.value = product[1];  // Set the price in the price input field
-        }
-      }).getProducts();
-      
+      // Find product price from the loaded productData
+      let product = productData.find(p => p[0] === productName);
+      if (product) {
+        priceInput.value = product[1];  // Set the price in the price input field
+      }
+
       calculateTotal();
     }
 
+    // Save the invoice details to the backend
     function saveInvoice() {
       if (!selectedInvoiceType) {
         alert("Please select an Invoice Type (Purchase or Sale).");
@@ -169,6 +270,11 @@ function saveInvoice(invoiceData) {
         return;
       }
 
+      let discount = {
+        type: discountType,
+        value: parseFloat(document.getElementById("discountValue").value) || 0
+      };
+
       google.script.run.withSuccessHandler(response => {
         // Show success message
         document.getElementById("successMessage").style.display = "block";
@@ -178,6 +284,7 @@ function saveInvoice(invoiceData) {
         document.getElementById("contact").value = "";
         document.getElementById("invoiceNumber").value = "";
         document.getElementById("description").value = "";
+        document.getElementById("discountValue").value = "";
 
         // Remove all product rows
         document.querySelector("#productTable tbody").innerHTML = "";
@@ -194,79 +301,26 @@ function saveInvoice(invoiceData) {
           document.getElementById("successMessage").style.display = "none";
         }, 3000);
 
-      }).saveInvoice({ invoiceInfo, products });
+      }).saveInvoice({ invoiceInfo, products, discount });
     }
 
+    // Print the invoice page
     function printInvoice() {
       window.print();
     }
+
+    // Set Discount Type (Fixed or Percent)
+    function setDiscountType(type) {
+      discountType = type;
+      document.getElementById("discountType").innerText = type;
+      calculateTotal();
+    }
+
+    // Discount input change listener
+    document.getElementById("discountValue").addEventListener('input', function() {
+      discountValue = parseFloat(this.value) || 0; // Update the discount value
+      calculateTotal(); // Recalculate the total
+    });
   </script>
-  <style>
-    body { font-family: Arial, sans-serif; }
-    .invoice-container { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-    .product-table-container { margin-top: 20px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid black; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    .total-section { text-align: right; font-size: 18px; font-weight: bold; margin-top: 10px; }
-    .success-notice {
-      background-color: #28a745;
-      color: white;
-      padding: 10px;
-      text-align: center;
-      font-size: 16px;
-      font-weight: bold;
-      border-radius: 5px;
-      margin-top: 10px;
-      display: none;
-    }
-    .invoice-btn {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      margin: 5px;
-      cursor: pointer;
-      font-size: 16px;
-      border-radius: 5px;
-    }
-    .invoice-btn:hover {
-      background-color: #0056b3;
-    }
-  </style>
-</head>
-<body>
-  <h2>Invoice Type</h2>
-  <button class="invoice-btn" onclick="setInvoiceType('Purchase')">📥 Purchase</button>
-  <button class="invoice-btn" onclick="setInvoiceType('Sale')">📤 Sale</button>
-  <p><strong>Selected Type:</strong> <span id="selectedType">None</span></p>
-
-  <h2>Invoice Entry</h2>
-  <div id="invoiceSection" class="invoice-container">
-    <label>Date:</label>
-    <input type="date" id="invoiceDate">
-    <label>Contact:</label>
-    <select id="contact"><option value="">Select Contact</option></select>
-    <label>Invoice #:</label>
-    <input type="text" id="invoiceNumber" placeholder="Enter Invoice No.">
-    <label>Description:</label>
-    <input type="text" id="description" placeholder="Enter Description">
-  </div>
-
-  <div id="successMessage" class="success-notice">✅ Invoice Saved Successfully!</div>
-
-  <button onclick="addProductRow()">➕ Add Product</button>
-  <button onclick="saveInvoice()">💾 Save Invoice</button>
-  <button onclick="printInvoice()">🖨️ Print Invoice</button>
-
-  <div class="product-table-container">
-    <table id="productTable">
-      <thead>
-        <tr><th>Product</th><th>Price</th><th>Quantity</th><th>Total</th><th>Action</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div id="grandTotal" class="total-section">Grand Total: $0.00</div>
-  </div>
 </body>
 </html>
