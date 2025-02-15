@@ -1,0 +1,246 @@
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// Function to get unique values for search boxes (Columns D, F & I)
+function getUniqueValues(column) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+  var data = sheet.getRange(column + "2:" + column).getValues().flat(); // Get all values in the specified column
+  var uniqueValues = [...new Set(data.filter(String))]; // Remove empty values and duplicates
+  return JSON.stringify(uniqueValues);
+}
+
+// Function to get filtered data based on search boxes and date range
+function getData(searchQueryD, searchQueryF, searchQueryI, fromDate, toDate) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+  var data = sheet.getRange("A2:Q").getValues(); // Include column Q for sum calculation
+
+  // Remove empty rows
+  data = data.filter(row => row.some(cell => cell !== ""));
+
+  // Convert input dates to JavaScript Date objects
+  fromDate = fromDate ? new Date(fromDate) : null;
+  toDate = toDate ? new Date(toDate) : null;
+
+  // Filter data by search queries (Columns D, F & I) and date range (Column C)
+  data = data.filter(row => {
+    let cellDate = new Date(row[2]); // Column C (Index 2)
+    let matchesSearchD = searchQueryD ? row[3].toString() === searchQueryD : true; // Column D (Index 3)
+    let matchesSearchF = searchQueryF ? row[5].toString() === searchQueryF : true; // Column F (Index 5)
+    let matchesSearchI = searchQueryI ? row[8].toString() === searchQueryI : true; // Column I (Index 8)
+    let matchesDateRange = (!fromDate || cellDate >= fromDate) && (!toDate || cellDate <= toDate);
+    
+    return matchesSearchD && matchesSearchF && matchesSearchI && matchesDateRange;
+  });
+
+  // Add serial numbers (SL)
+  data = data.map((row, index) => [index + 1, ...row]); // Insert SL column at index 0
+
+  // Sum filtered Column Q (Index 17 after adding SL)
+  var sumQ = data.reduce((total, row) => total + (parseFloat(row[17]) || 0), 0);
+
+  return JSON.stringify({ data, sumQ });
+}
+-----------------------------
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Search & Filter Table with Auto SL</title>
+  <script>
+    function loadData() {
+      let searchQueryD = document.getElementById("searchBoxD").value;
+      let searchQueryF = document.getElementById("searchBoxF").value;
+      let searchQueryI = document.getElementById("searchBoxI").value;
+      let fromDate = document.getElementById("fromDate").value;
+      let toDate = document.getElementById("toDate").value;
+
+      google.script.run.withSuccessHandler(displayData).getData(searchQueryD, searchQueryF, searchQueryI, fromDate, toDate);
+    }
+
+    function displayData(response) {
+      let { data, sumQ } = JSON.parse(response);
+      let table = document.getElementById("dataTable");
+      let sumDisplay = document.getElementById("sumDisplay");
+
+      // Clear previous data
+      table.innerHTML = "<tr><th>SL</th><th>Column A</th><th>Column B</th><th>Column C (Date)</th><th>Column D</th><th>Column E</th><th>Column F</th><th>Column G</th><th>Column H</th><th>Column I</th><th>Column Q</th></tr>";
+
+      data.forEach(row => {
+        let tr = document.createElement("tr");
+
+        row.forEach((cell, index) => {
+          if (index <= 9 || index == 18) { // Display SL, A-H, I, and Q columns
+            let td = document.createElement("td");
+
+            // Format Column C (Index 3 after adding SL) as "DD-MM-YYYY"
+            if (index === 3 && cell) {
+              let dateObj = new Date(cell);
+              let formattedDate = ("0" + dateObj.getDate()).slice(-2) + "-" +
+                                  ("0" + (dateObj.getMonth() + 1)).slice(-2) + "-" +
+                                  dateObj.getFullYear();
+              td.textContent = formattedDate;
+            } else {
+              td.textContent = cell;
+            }
+
+            tr.appendChild(td);
+          }
+        });
+
+        table.appendChild(tr);
+      });
+
+      // Display filtered sum
+      sumDisplay.innerText = "Total: " + sumQ.toFixed(2);
+    }
+
+    function loadUniqueValues() {
+      google.script.run.withSuccessHandler(values => populateSearchBox("searchBoxD", values)).getUniqueValues("D");
+      google.script.run.withSuccessHandler(values => populateSearchBox("searchBoxF", values)).getUniqueValues("F");
+      google.script.run.withSuccessHandler(values => populateSearchBox("searchBoxI", values)).getUniqueValues("I");
+    }
+
+    function populateSearchBox(elementId, values) {
+      let searchBox = document.getElementById(elementId);
+      searchBox.innerHTML = "<option value=''>-- Select Value --</option>"; // Default option
+      JSON.parse(values).forEach(value => {
+        let option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        searchBox.appendChild(option);
+      });
+    }
+
+    function printFullPage() {
+      let printWindow = window.open('', '', 'width=800,height=600');
+
+      printWindow.document.write('<html><head><title>Print Table</title>');
+      printWindow.document.write('<style>');
+      printWindow.document.write(`
+        @media print {
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+          }
+          th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f2f2f2;
+          }
+          .filter-container, .total-print-container {
+            display: flex;
+            gap: 10px;
+            font-size: 16px;
+            margin-bottom: 10px;
+          }
+          .page-break {
+            page-break-before: always;
+          }
+        }
+      `);
+      printWindow.document.write('</style>');
+      printWindow.document.write('</head><body>');
+      printWindow.document.write('<h2>Filtered Data Table</h2>');
+
+      // Print Filter Section
+      printWindow.document.write(document.getElementById("filterSection").outerHTML);
+
+      // Print Table
+      printWindow.document.write(document.getElementById("printArea").outerHTML);
+
+      printWindow.document.write('</body></html>');
+
+      printWindow.document.close();
+      printWindow.print();
+    }
+
+    window.onload = () => {
+      loadUniqueValues(); // Load unique values in dropdowns
+    };
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .filter-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .filter-container label {
+      font-weight: bold;
+    }
+    .filter-container select, .filter-container input {
+      padding: 5px;
+    }
+    .filter-container button {
+      padding: 8px 12px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .filter-container button:hover {
+      background-color: #218838;
+    }
+    .total-print-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+    .total-print-container p {
+      font-size: 16px;
+      font-weight: bold;
+      margin: 0;
+    }
+    .print-btn {
+      background-color: #007bff;
+    }
+    .print-btn:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h2>Search & Filter Table with Auto SL</h2>
+
+  <div id="filterSection">
+    <div class="filter-container">
+      <label for="searchBoxD">Search D:</label>
+      <select id="searchBoxD"></select>
+
+      <label for="searchBoxF">Search F:</label>
+      <select id="searchBoxF"></select>
+
+      <label for="searchBoxI">Search I:</label>
+      <select id="searchBoxI"></select>
+
+      <label for="fromDate">From:</label>
+      <input type="date" id="fromDate" />
+    
+      <label for="toDate">To:</label>
+      <input type="date" id="toDate" />
+    
+      <button onclick="loadData()">🔍 Search</button>
+
+      <div class="total-print-container">
+        <p id="sumDisplay">Total: 0</p>
+        <button class="print-btn" onclick="printFullPage()">🖨️ Print</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="printArea">
+    <table border="1" id="dataTable"></table>
+  </div>
+</body>
+</html>
