@@ -1,0 +1,184 @@
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function saveInvoice(invoiceData) {
+  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Invoices");
+
+  if (!sheet) {
+    sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Invoices");
+    sheet.appendRow(["Date", "Contact", "Invoice #", "Description", "Product", "Price", "Quantity", "Total"]);
+  }
+
+  let invoiceInfo = invoiceData.invoiceInfo;
+  let products = invoiceData.products;
+
+  products.forEach(product => {
+    sheet.appendRow([
+      invoiceInfo.date,
+      invoiceInfo.contact,
+      invoiceInfo.invoiceNumber,
+      invoiceInfo.description,
+      product.productName,
+      product.price,
+      product.quantity,
+      product.total
+    ]);
+  });
+
+  return "Invoice Saved Successfully!";
+}
+-----------------------------------
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Invoice Entry & Product Table</title>
+  <script>
+    function calculateTotal() {
+      let rows = document.querySelectorAll("#productTable tbody tr");
+      let grandTotal = 0;
+
+      rows.forEach(row => {
+        let price = parseFloat(row.querySelector(".price").value) || 0;
+        let quantity = parseFloat(row.querySelector(".quantity").value) || 0;
+        let total = price * quantity;
+
+        row.querySelector(".total").value = total.toFixed(2);
+        grandTotal += total;
+      });
+
+      document.getElementById("grandTotal").innerText = "Grand Total: $" + grandTotal.toFixed(2);
+    }
+
+    function addProductRow() {
+      let tableBody = document.querySelector("#productTable tbody");
+      let newRow = document.createElement("tr");
+
+      newRow.innerHTML = `
+        <td><input type="text" class="product" placeholder="Enter Product"></td>
+        <td><input type="number" class="price" placeholder="Price" oninput="calculateTotal()"></td>
+        <td><input type="number" class="quantity" placeholder="Quantity" oninput="calculateTotal()"></td>
+        <td><input type="text" class="total" placeholder="Total" readonly></td>
+        <td><button onclick="removeRow(this)">❌</button></td>
+      `;
+
+      tableBody.appendChild(newRow);
+    }
+
+    function removeRow(button) {
+      button.parentElement.parentElement.remove();
+      calculateTotal();
+    }
+
+    function saveInvoice() {
+      let invoiceInfo = {
+        date: document.getElementById("invoiceDate").value,
+        contact: document.getElementById("contact").value,
+        invoiceNumber: document.getElementById("invoiceNumber").value,
+        description: document.getElementById("description").value
+      };
+
+      let products = [];
+      let rows = document.querySelectorAll("#productTable tbody tr");
+
+      rows.forEach(row => {
+        let productName = row.querySelector(".product").value;
+        let price = parseFloat(row.querySelector(".price").value) || 0;
+        let quantity = parseFloat(row.querySelector(".quantity").value) || 0;
+        let total = parseFloat(row.querySelector(".total").value) || 0;
+
+        if (productName && quantity > 0) {
+          products.push({ productName, price, quantity, total });
+        }
+      });
+
+      if (!invoiceInfo.date || !invoiceInfo.invoiceNumber || products.length === 0) {
+        alert("Please fill invoice details and add at least one product.");
+        return;
+      }
+
+      google.script.run.withSuccessHandler(response => {
+        alert(response);
+        location.reload(); // Refresh page after saving
+      }).saveInvoice({ invoiceInfo, products });
+    }
+
+    function printInvoice() {
+      let printWindow = window.open('', '', 'width=800,height=600');
+
+      printWindow.document.write('<html><head><title>Invoice Print</title>');
+      printWindow.document.write('<style>');
+      printWindow.document.write(`
+        @media print {
+          body { font-family: Arial, sans-serif; }
+          .invoice-container { width: 100%; margin-bottom: 20px; }
+          .invoice-container input { border: none; font-size: 16px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { border: 1px solid black; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          .total-section { font-size: 18px; font-weight: bold; text-align: right; margin-top: 10px; }
+          .remove-btn { display: none; }
+        }
+      `);
+      printWindow.document.write('</style>');
+      printWindow.document.write('</head><body>');
+
+      printWindow.document.write('<h2>Invoice</h2>');
+      printWindow.document.write(document.getElementById("invoiceSection").outerHTML);
+      printWindow.document.write(document.getElementById("printArea").outerHTML);
+
+      printWindow.document.write('</body></html>');
+
+      printWindow.document.close();
+      printWindow.print();
+    }
+  </script>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .invoice-container { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .invoice-container label { font-weight: bold; }
+    .invoice-container input { padding: 5px; width: 200px; }
+    .product-table-container { margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid black; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .total-section { text-align: right; font-size: 18px; font-weight: bold; margin-top: 10px; }
+    .print-btn, .save-btn, .add-btn { padding: 8px; border: none; cursor: pointer; margin-top: 10px; }
+    .print-btn { background-color: #007bff; color: white; }
+    .save-btn { background-color: #ff9800; color: white; }
+    .add-btn { background-color: #28a745; color: white; }
+  </style>
+</head>
+<body>
+  <h2>Invoice Entry & Product Table</h2>
+
+  <div id="invoiceSection" class="invoice-container">
+    <label for="invoiceDate">Date:</label>
+    <input type="date" id="invoiceDate">
+
+    <label for="contact">Contact:</label>
+    <input type="text" id="contact" placeholder="Enter Contact">
+
+    <label for="invoiceNumber">Invoice #:</label>
+    <input type="text" id="invoiceNumber" placeholder="Enter Invoice No.">
+
+    <label for="description">Description:</label>
+    <input type="text" id="description" placeholder="Enter Description">
+  </div>
+
+  <button class="add-btn" onclick="addProductRow()">➕ Add Product</button>
+  <button class="save-btn" onclick="saveInvoice()">💾 Save Invoice</button>
+  <button class="print-btn" onclick="printInvoice()">🖨️ Print Invoice</button>
+
+  <div id="printArea">
+    <table id="productTable">
+      <thead><tr><th>Product</th><th>Price</th><th>Quantity</th><th>Total</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p id="grandTotal" class="total-section">Grand Total: $0.00</p>
+  </div>
+</body>
+</html>
