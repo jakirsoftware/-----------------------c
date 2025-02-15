@@ -40,7 +40,7 @@ function getData(searchQuery, fromDate, toDate) {
 
   return JSON.stringify({ data, sumQ });
 }
-----------------------------
+---------------------------------------
 <!DOCTYPE html>
 <html>
 <head>
@@ -88,7 +88,7 @@ function getData(searchQuery, fromDate, toDate) {
       });
 
       // Display filtered sum
-      sumDisplay.innerText = "Total Sum of Filtered Column Q: " + sumQ.toFixed(2);
+      sumDisplay.innerText = "Total: " + sumQ.toFixed(2);
     }
 
     function loadUniqueValues() {
@@ -123,32 +123,77 @@ function getData(searchQuery, fromDate, toDate) {
       loadUniqueValues(); // Load unique values in dropdown
     };
   </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .filter-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .filter-container label {
+      font-weight: bold;
+    }
+    .filter-container select, .filter-container input {
+      padding: 5px;
+    }
+    .filter-container button {
+      padding: 8px 12px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .filter-container button:hover {
+      background-color: #218838;
+    }
+    .total-print-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+    .total-print-container p {
+      font-size: 16px;
+      font-weight: bold;
+      margin: 0;
+    }
+    .print-btn {
+      background-color: #007bff;
+    }
+    .print-btn:hover {
+      background-color: #0056b3;
+    }
+  </style>
 </head>
 <body>
   <h2>Search & Filter Table with Auto SL</h2>
 
-  <!-- Search Dropdown for Column D -->
-  <label for="searchBox">Search by Column D:</label>
-  <select id="searchBox"></select>
+  <div class="filter-container">
+    <!-- Search Dropdown for Column D -->
+    <label for="searchBox">Search:</label>
+    <select id="searchBox"></select>
 
-  <!-- Date Range Inputs -->
-  <label for="fromDate">From Date:</label>
-  <input type="date" id="fromDate" />
+    <!-- Date Range Inputs -->
+    <label for="fromDate">From:</label>
+    <input type="date" id="fromDate" />
   
-  <label for="toDate">To Date:</label>
-  <input type="date" id="toDate" />
+    <label for="toDate">To:</label>
+    <input type="date" id="toDate" />
   
-  <br><br>
-  <button onclick="loadData()">🔍 Submit</button>
+    <button onclick="loadData()">🔍 Search</button>
 
-  <br><br>
-  <div id="printArea">
-    <table border="1" id="dataTable"></table>
-    <br>
-    <p id="sumDisplay">Total Sum of Filtered Column Q: Loading...</p>
+    <!-- Total & Print inside filter section -->
+    <div class="total-print-container">
+      <p id="sumDisplay">Total: 0</p>
+      <button class="print-btn" onclick="printTable()">🖨️ Print</button>
+    </div>
   </div>
 
-  <br>
-  <button onclick="printTable()">🖨️ Print Table</button>
+  <div id="printArea">
+    <table border="1" id="dataTable"></table>
+  </div>
 </body>
 </html>
