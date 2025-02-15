@@ -1,0 +1,166 @@
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('Sales Invoice');
+}
+
+function saveInvoice(data) {
+  var sheet = SpreadsheetApp.openById('19OjuAKgr1-Drwc_5Ws4GIqO9n01QgU7hJbh2zklOxuM').getSheetByName("Invoice");
+  if (!sheet) {
+    sheet = SpreadsheetApp.openById('19OjuAKgr1-Drwc_5Ws4GIqO9n01QgU7hJbh2zklOxuM').insertSheet("Invoice");
+    sheet.appendRow(["Date", "Invoice Number", "Customer Name", "Product", "Price", "Quantity", "Total"]);
+  }
+
+  var date = new Date();
+  data.invoice.forEach(item => {
+    sheet.appendRow([
+      date,
+      data.invoiceNumber,
+      data.customer,
+      item.product,
+      item.price,
+      item.quantity,
+      item.total
+    ]);
+  });
+
+  return "Invoice saved successfully!";
+}
+-----------------------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Invoice</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        button { margin-top: 10px; padding: 8px 12px; cursor: pointer; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <h2>Sales Invoice</h2>
+    
+    <label>Invoice No: <input type="text" id="invoiceNumber"></label>
+    <label>Customer Name: <input type="text" id="customerName"></label><br><br>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>Quantity</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody id="invoiceBody"></tbody>
+    </table>
+
+    <button onclick="addRow()">Add Product</button>
+    <button onclick="saveInvoice()">Save Invoice</button>
+    <button onclick="printInvoice()">Print Invoice</button>
+
+    <h3>Total Amount: <span id="totalAmount">0</span></h3>
+
+    <div id="printArea" class="hidden">
+        <h2>Sales Invoice</h2>
+        <p><strong>Invoice No:</strong> <span id="printInvoiceNumber"></span></p>
+        <p><strong>Customer Name:</strong> <span id="printCustomerName"></span></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody id="printInvoiceBody"></tbody>
+        </table>
+        <h3>Total Amount: <span id="printTotalAmount"></span></h3>
+    </div>
+
+    <script>
+        function addRow() {
+            const tbody = document.getElementById("invoiceBody");
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td><input type="text" placeholder="Product Name"></td>
+                <td><input type="number" value="0" onchange="updateTotal()"></td>
+                <td><input type="number" value="1" onchange="updateTotal()"></td>
+                <td class="total">0</td>
+            `;
+        }
+
+        function updateTotal() {
+            let total = 0;
+            document.querySelectorAll("#invoiceBody tr").forEach(row => {
+                const price = row.cells[1].querySelector("input").value || 0;
+                const qty = row.cells[2].querySelector("input").value || 0;
+                const rowTotal = price * qty;
+                row.cells[3].textContent = rowTotal;
+                total += rowTotal;
+            });
+            document.getElementById("totalAmount").textContent = total;
+        }
+
+        function saveInvoice() {
+            const invoiceNumber = document.getElementById("invoiceNumber").value;
+            const customerName = document.getElementById("customerName").value;
+            if (!invoiceNumber || !customerName) {
+                alert("Enter Invoice Number and Customer Name");
+                return;
+            }
+
+            const invoiceData = [];
+            document.querySelectorAll("#invoiceBody tr").forEach(row => {
+                invoiceData.push({
+                    product: row.cells[0].querySelector("input").value,
+                    price: row.cells[1].querySelector("input").value,
+                    quantity: row.cells[2].querySelector("input").value,
+                    total: row.cells[3].textContent
+                });
+            });
+
+            google.script.run.withSuccessHandler(response => {
+                alert(response);
+                location.reload();
+            }).saveInvoice({
+                invoiceNumber: invoiceNumber,
+                customer: customerName,
+                invoice: invoiceData
+            });
+        }
+
+        function printInvoice() {
+            document.getElementById("printInvoiceNumber").textContent = document.getElementById("invoiceNumber").value;
+            document.getElementById("printCustomerName").textContent = document.getElementById("customerName").value;
+            document.getElementById("printInvoiceBody").innerHTML = "";
+            document.querySelectorAll("#invoiceBody tr").forEach(row => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${row.cells[0].querySelector("input").value}</td>
+                    <td>${row.cells[1].querySelector("input").value}</td>
+                    <td>${row.cells[2].querySelector("input").value}</td>
+                    <td>${row.cells[3].textContent}</td>
+                `;
+                document.getElementById("printInvoiceBody").appendChild(tr);
+            });
+            document.getElementById("printTotalAmount").textContent = document.getElementById("totalAmount").textContent;
+
+            const printContent = document.getElementById("printArea").innerHTML;
+            const originalContent = document.body.innerHTML;
+
+            document.body.innerHTML = printContent;
+            window.print();
+            document.body.innerHTML = originalContent;
+            location.reload();
+        }
+    </script>
+
+</body>
+</html>
