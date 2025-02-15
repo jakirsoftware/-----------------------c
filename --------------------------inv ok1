@@ -10,7 +10,7 @@ function saveInvoice(invoiceData) {
 
   if (!sheet) {
     sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Invoices");
-    sheet.appendRow(["Date", "Contact", "Invoice #", "Description", "Product", "Price", "Quantity", "Total"]);
+    sheet.appendRow(["Invoice Type", "Date", "Contact", "Invoice #", "Description", "Product", "Price", "Quantity", "Total"]);
   }
 
   let invoiceInfo = invoiceData.invoiceInfo;
@@ -18,6 +18,7 @@ function saveInvoice(invoiceData) {
 
   products.forEach(product => {
     sheet.appendRow([
+      invoiceInfo.invoiceType, // Invoice Type
       invoiceInfo.date,
       invoiceInfo.contact,
       invoiceInfo.invoiceNumber,
@@ -31,12 +32,19 @@ function saveInvoice(invoiceData) {
 
   return "Invoice Saved Successfully!";
 }
------------------------------------------
+-------------------------------------
 <!DOCTYPE html>
 <html>
 <head>
   <title>Invoice System</title>
   <script>
+    let selectedInvoiceType = "";
+
+    function setInvoiceType(type) {
+      selectedInvoiceType = type;
+      document.getElementById("selectedType").innerText = type;
+    }
+
     function calculateTotal() {
       let rows = document.querySelectorAll("#productTable tbody tr");
       let grandTotal = 0;
@@ -74,7 +82,13 @@ function saveInvoice(invoiceData) {
     }
 
     function saveInvoice() {
+      if (!selectedInvoiceType) {
+        alert("Please select an Invoice Type (Purchase or Sale).");
+        return;
+      }
+
       let invoiceInfo = {
+        invoiceType: selectedInvoiceType, // Save Invoice Type
         date: document.getElementById("invoiceDate").value,
         contact: document.getElementById("contact").value,
         invoiceNumber: document.getElementById("invoiceNumber").value,
@@ -116,6 +130,10 @@ function saveInvoice(invoiceData) {
         // Reset Grand Total
         document.getElementById("grandTotal").innerText = "Grand Total: $0.00";
 
+        // Clear Invoice Type selection
+        document.getElementById("selectedType").innerText = "None";
+        selectedInvoiceType = "";
+
         // Hide success message after 3 seconds
         setTimeout(() => {
           document.getElementById("successMessage").style.display = "none";
@@ -147,11 +165,28 @@ function saveInvoice(invoiceData) {
       margin-top: 10px;
       display: none;
     }
+    .invoice-btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      margin: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 5px;
+    }
+    .invoice-btn:hover {
+      background-color: #0056b3;
+    }
   </style>
 </head>
 <body>
-  <h2>Invoice Entry & Product Table</h2>
+  <h2>Invoice Type</h2>
+  <button class="invoice-btn" onclick="setInvoiceType('Purchase')">📥 Purchase</button>
+  <button class="invoice-btn" onclick="setInvoiceType('Sale')">📤 Sale</button>
+  <p><strong>Selected Type:</strong> <span id="selectedType">None</span></p>
 
+  <h2>Invoice Entry</h2>
   <div id="invoiceSection" class="invoice-container">
     <label>Date:</label>
     <input type="date" id="invoiceDate">
@@ -176,7 +211,7 @@ function saveInvoice(invoiceData) {
       </thead>
       <tbody></tbody>
     </table>
-    <p id="grandTotal" class="total-section">Grand Total: $0.00</p>
+    <div id="grandTotal" class="total-section">Grand Total: $0.00</div>
   </div>
 </body>
 </html>
