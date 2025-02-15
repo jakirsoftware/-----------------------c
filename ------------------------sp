@@ -37,7 +37,7 @@ function getData(searchQuery, fromDate, toDate) {
 
   return JSON.stringify({ data, sumQ });
 }
------------------------------
+---------------------------------
 <!DOCTYPE html>
 <html>
 <head>
@@ -105,12 +105,15 @@ function getData(searchQuery, fromDate, toDate) {
 
     function printTable() {
       let printContent = document.getElementById("printArea").innerHTML;
-      let originalContent = document.body.innerHTML;
+      let printWindow = window.open('', '', 'width=800,height=600');
 
-      document.body.innerHTML = printContent;
-      window.print();
-      document.body.innerHTML = originalContent;
-      location.reload(); // Reload to restore functionality
+      printWindow.document.write('<html><head><title>Print Table</title></head><body>');
+      printWindow.document.write('<h2>Filtered Data Table</h2>');
+      printWindow.document.write(printContent);
+      printWindow.document.write('</body></html>');
+
+      printWindow.document.close();
+      printWindow.print();
     }
 
     window.onload = () => {
