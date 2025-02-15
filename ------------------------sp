@@ -5,32 +5,50 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function getData(searchQuery) {
+function getUniqueValues() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
-  var data = sheet.getRange("A2:Q").getValues(); // Include column Q in the range
-  
+  var data = sheet.getRange("D2:D").getValues().flat(); // Get all values in column D
+  var uniqueValues = [...new Set(data.filter(String))]; // Remove empty values and duplicates
+  return JSON.stringify(uniqueValues);
+}
+
+function getData(searchQuery, fromDate, toDate) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+  var data = sheet.getRange("A2:Q").getValues(); // Include column Q for sum calculation
+
   // Remove empty rows
   data = data.filter(row => row.some(cell => cell !== ""));
 
-  // If there's a search query, filter by column D (index 3)
-  if (searchQuery) {
-    searchQuery = searchQuery.toLowerCase();
-    data = data.filter(row => row[3].toString().toLowerCase().includes(searchQuery));
-  }
+  // Convert input dates to JavaScript Date objects
+  fromDate = fromDate ? new Date(fromDate) : null;
+  toDate = toDate ? new Date(toDate) : null;
 
-  // Sum only the filtered column Q (index 16 since A = 0)
+  // Filter data by searchQuery (Column D) and date range (Column C)
+  data = data.filter(row => {
+    let cellDate = new Date(row[2]); // Column C (Index 2)
+    let matchesSearch = searchQuery ? row[3].toString() === searchQuery : true;
+    let matchesDateRange = (!fromDate || cellDate >= fromDate) && (!toDate || cellDate <= toDate);
+    
+    return matchesSearch && matchesDateRange;
+  });
+
+  // Sum filtered Column Q (Index 16)
   var sumQ = data.reduce((total, row) => total + (parseFloat(row[16]) || 0), 0);
 
   return JSON.stringify({ data, sumQ });
 }
-----------------------------------
+--------------------------------------
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Search & Filter Table with Sum</title>
+  <title>Search & Filter Table with Date Range</title>
   <script>
-    function loadData(searchQuery = "") {
-      google.script.run.withSuccessHandler(displayData).getData(searchQuery);
+    function loadData() {
+      let searchQuery = document.getElementById("searchBox").value;
+      let fromDate = document.getElementById("fromDate").value;
+      let toDate = document.getElementById("toDate").value;
+
+      google.script.run.withSuccessHandler(displayData).getData(searchQuery, fromDate, toDate);
     }
 
     function displayData(response) {
@@ -39,12 +57,12 @@ function getData(searchQuery) {
       let sumDisplay = document.getElementById("sumDisplay");
 
       // Clear previous data
-      table.innerHTML = "<tr><th>Column A</th><th>Column B</th><th>Column C</th><th>Column D</th><th>Column E</th><th>Column F</th><th>Column G</th><th>Column H</th><th>Column Q</th></tr>";
+      table.innerHTML = "<tr><th>Column A</th><th>Column B</th><th>Column C (Date)</th><th>Column D</th><th>Column E</th><th>Column F</th><th>Column G</th><th>Column H</th><th>Column Q</th></tr>";
 
       data.forEach(row => {
         let tr = document.createElement("tr");
         row.forEach((cell, index) => {
-          if (index <= 7 || index == 16) { // Only display A-H and Q columns
+          if (index <= 7 || index == 16) { // Display A-H and Q columns
             let td = document.createElement("td");
             td.textContent = cell;
             tr.appendChild(td);
@@ -57,30 +75,52 @@ function getData(searchQuery) {
       sumDisplay.innerText = "Total Sum of Filtered Column Q: " + sumQ.toFixed(2);
     }
 
-    function searchTable() {
-      let searchQuery = document.getElementById("searchBox").value;
-      loadData(searchQuery);
+    function loadUniqueValues() {
+      google.script.run.withSuccessHandler(populateSearchBox).getUniqueValues();
+    }
+
+    function populateSearchBox(values) {
+      let searchBox = document.getElementById("searchBox");
+      searchBox.innerHTML = "<option value=''>-- Select Value --</option>"; // Default option
+      JSON.parse(values).forEach(value => {
+        let option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        searchBox.appendChild(option);
+      });
     }
 
     function printTable() {
       let printContent = document.getElementById("printArea").innerHTML;
       let originalContent = document.body.innerHTML;
-      
+
       document.body.innerHTML = printContent;
       window.print();
       document.body.innerHTML = originalContent;
-
       location.reload(); // Reload to restore functionality
     }
 
-    window.onload = () => loadData();
+    window.onload = () => {
+      loadUniqueValues(); // Load unique values in dropdown
+      loadData(); // Load table data
+    };
   </script>
 </head>
 <body>
-  <h2>Search & Filter Table with Sum</h2>
-  <input type="text" id="searchBox" placeholder="Search in Column D" onkeyup="searchTable()" />
-  <br><br>
+  <h2>Search & Filter Table with Date Range</h2>
+
+  <!-- Search Dropdown for Column D -->
+  <label for="searchBox">Search by Column D:</label>
+  <select id="searchBox" onchange="loadData()"></select>
+
+  <!-- Date Range Inputs -->
+  <label for="fromDate">From Date:</label>
+  <input type="date" id="fromDate" onchange="loadData()" />
   
+  <label for="toDate">To Date:</label>
+  <input type="date" id="toDate" onchange="loadData()" />
+  
+  <br><br>
   <div id="printArea">
     <table border="1" id="dataTable"></table>
     <br>
