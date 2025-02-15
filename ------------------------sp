@@ -1,0 +1,93 @@
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function getData(searchQuery) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+  var data = sheet.getRange("A2:Q").getValues(); // Include column Q in the range
+  
+  // Remove empty rows
+  data = data.filter(row => row.some(cell => cell !== ""));
+
+  // If there's a search query, filter by column D (index 3)
+  if (searchQuery) {
+    searchQuery = searchQuery.toLowerCase();
+    data = data.filter(row => row[3].toString().toLowerCase().includes(searchQuery));
+  }
+
+  // Sum only the filtered column Q (index 16 since A = 0)
+  var sumQ = data.reduce((total, row) => total + (parseFloat(row[16]) || 0), 0);
+
+  return JSON.stringify({ data, sumQ });
+}
+----------------------------------
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Search & Filter Table with Sum</title>
+  <script>
+    function loadData(searchQuery = "") {
+      google.script.run.withSuccessHandler(displayData).getData(searchQuery);
+    }
+
+    function displayData(response) {
+      let { data, sumQ } = JSON.parse(response);
+      let table = document.getElementById("dataTable");
+      let sumDisplay = document.getElementById("sumDisplay");
+
+      // Clear previous data
+      table.innerHTML = "<tr><th>Column A</th><th>Column B</th><th>Column C</th><th>Column D</th><th>Column E</th><th>Column F</th><th>Column G</th><th>Column H</th><th>Column Q</th></tr>";
+
+      data.forEach(row => {
+        let tr = document.createElement("tr");
+        row.forEach((cell, index) => {
+          if (index <= 7 || index == 16) { // Only display A-H and Q columns
+            let td = document.createElement("td");
+            td.textContent = cell;
+            tr.appendChild(td);
+          }
+        });
+        table.appendChild(tr);
+      });
+
+      // Display filtered sum
+      sumDisplay.innerText = "Total Sum of Filtered Column Q: " + sumQ.toFixed(2);
+    }
+
+    function searchTable() {
+      let searchQuery = document.getElementById("searchBox").value;
+      loadData(searchQuery);
+    }
+
+    function printTable() {
+      let printContent = document.getElementById("printArea").innerHTML;
+      let originalContent = document.body.innerHTML;
+      
+      document.body.innerHTML = printContent;
+      window.print();
+      document.body.innerHTML = originalContent;
+
+      location.reload(); // Reload to restore functionality
+    }
+
+    window.onload = () => loadData();
+  </script>
+</head>
+<body>
+  <h2>Search & Filter Table with Sum</h2>
+  <input type="text" id="searchBox" placeholder="Search in Column D" onkeyup="searchTable()" />
+  <br><br>
+  
+  <div id="printArea">
+    <table border="1" id="dataTable"></table>
+    <br>
+    <p id="sumDisplay">Total Sum of Filtered Column Q: Loading...</p>
+  </div>
+
+  <br>
+  <button onclick="printTable()">🖨️ Print Table</button>
+</body>
+</html>
