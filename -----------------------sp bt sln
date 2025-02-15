@@ -32,16 +32,19 @@ function getData(searchQuery, fromDate, toDate) {
     return matchesSearch && matchesDateRange;
   });
 
-  // Sum filtered Column Q (Index 16)
-  var sumQ = data.reduce((total, row) => total + (parseFloat(row[16]) || 0), 0);
+  // Add serial numbers (SL)
+  data = data.map((row, index) => [index + 1, ...row]); // Insert SL column at index 0
+
+  // Sum filtered Column Q (Index 17 after adding SL)
+  var sumQ = data.reduce((total, row) => total + (parseFloat(row[17]) || 0), 0);
 
   return JSON.stringify({ data, sumQ });
 }
-----------------------------------------
+----------------------------
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Search & Filter Table with Date Range</title>
+  <title>Search & Filter Table with Auto SL</title>
   <script>
     function loadData() {
       let searchQuery = document.getElementById("searchBox").value;
@@ -57,17 +60,17 @@ function getData(searchQuery, fromDate, toDate) {
       let sumDisplay = document.getElementById("sumDisplay");
 
       // Clear previous data
-      table.innerHTML = "<tr><th>Column A</th><th>Column B</th><th>Column C (Date)</th><th>Column D</th><th>Column E</th><th>Column F</th><th>Column G</th><th>Column H</th><th>Column Q</th></tr>";
+      table.innerHTML = "<tr><th>SL</th><th>Column A</th><th>Column B</th><th>Column C (Date)</th><th>Column D</th><th>Column E</th><th>Column F</th><th>Column G</th><th>Column H</th><th>Column Q</th></tr>";
 
       data.forEach(row => {
         let tr = document.createElement("tr");
 
         row.forEach((cell, index) => {
-          if (index <= 7 || index == 16) { // Display A-H and Q columns
+          if (index <= 8 || index == 17) { // Display SL, A-H, and Q columns
             let td = document.createElement("td");
 
-            // Format Column C (Index 2) as "DD-MM-YYYY"
-            if (index === 2 && cell) {
+            // Format Column C (Index 3 after adding SL) as "DD-MM-YYYY"
+            if (index === 3 && cell) {
               let dateObj = new Date(cell);
               let formattedDate = ("0" + dateObj.getDate()).slice(-2) + "-" +
                                   ("0" + (dateObj.getMonth() + 1)).slice(-2) + "-" +
@@ -122,7 +125,7 @@ function getData(searchQuery, fromDate, toDate) {
   </script>
 </head>
 <body>
-  <h2>Search & Filter Table with Date Range</h2>
+  <h2>Search & Filter Table with Auto SL</h2>
 
   <!-- Search Dropdown for Column D -->
   <label for="searchBox">Search by Column D:</label>
