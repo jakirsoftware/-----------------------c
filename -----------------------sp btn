@@ -1,0 +1,151 @@
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function getUniqueValues() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+  var data = sheet.getRange("D2:D").getValues().flat(); // Get all values in column D
+  var uniqueValues = [...new Set(data.filter(String))]; // Remove empty values and duplicates
+  return JSON.stringify(uniqueValues);
+}
+
+function getData(searchQuery, fromDate, toDate) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+  var data = sheet.getRange("A2:Q").getValues(); // Include column Q for sum calculation
+
+  // Remove empty rows
+  data = data.filter(row => row.some(cell => cell !== ""));
+
+  // Convert input dates to JavaScript Date objects
+  fromDate = fromDate ? new Date(fromDate) : null;
+  toDate = toDate ? new Date(toDate) : null;
+
+  // Filter data by searchQuery (Column D) and date range (Column C)
+  data = data.filter(row => {
+    let cellDate = new Date(row[2]); // Column C (Index 2)
+    let matchesSearch = searchQuery ? row[3].toString() === searchQuery : true;
+    let matchesDateRange = (!fromDate || cellDate >= fromDate) && (!toDate || cellDate <= toDate);
+    
+    return matchesSearch && matchesDateRange;
+  });
+
+  // Sum filtered Column Q (Index 16)
+  var sumQ = data.reduce((total, row) => total + (parseFloat(row[16]) || 0), 0);
+
+  return JSON.stringify({ data, sumQ });
+}
+----------------------------------------
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Search & Filter Table with Date Range</title>
+  <script>
+    function loadData() {
+      let searchQuery = document.getElementById("searchBox").value;
+      let fromDate = document.getElementById("fromDate").value;
+      let toDate = document.getElementById("toDate").value;
+
+      google.script.run.withSuccessHandler(displayData).getData(searchQuery, fromDate, toDate);
+    }
+
+    function displayData(response) {
+      let { data, sumQ } = JSON.parse(response);
+      let table = document.getElementById("dataTable");
+      let sumDisplay = document.getElementById("sumDisplay");
+
+      // Clear previous data
+      table.innerHTML = "<tr><th>Column A</th><th>Column B</th><th>Column C (Date)</th><th>Column D</th><th>Column E</th><th>Column F</th><th>Column G</th><th>Column H</th><th>Column Q</th></tr>";
+
+      data.forEach(row => {
+        let tr = document.createElement("tr");
+
+        row.forEach((cell, index) => {
+          if (index <= 7 || index == 16) { // Display A-H and Q columns
+            let td = document.createElement("td");
+
+            // Format Column C (Index 2) as "DD-MM-YYYY"
+            if (index === 2 && cell) {
+              let dateObj = new Date(cell);
+              let formattedDate = ("0" + dateObj.getDate()).slice(-2) + "-" +
+                                  ("0" + (dateObj.getMonth() + 1)).slice(-2) + "-" +
+                                  dateObj.getFullYear();
+              td.textContent = formattedDate;
+            } else {
+              td.textContent = cell;
+            }
+
+            tr.appendChild(td);
+          }
+        });
+
+        table.appendChild(tr);
+      });
+
+      // Display filtered sum
+      sumDisplay.innerText = "Total Sum of Filtered Column Q: " + sumQ.toFixed(2);
+    }
+
+    function loadUniqueValues() {
+      google.script.run.withSuccessHandler(populateSearchBox).getUniqueValues();
+    }
+
+    function populateSearchBox(values) {
+      let searchBox = document.getElementById("searchBox");
+      searchBox.innerHTML = "<option value=''>-- Select Value --</option>"; // Default option
+      JSON.parse(values).forEach(value => {
+        let option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        searchBox.appendChild(option);
+      });
+    }
+
+    function printTable() {
+      let printContent = document.getElementById("printArea").innerHTML;
+      let printWindow = window.open('', '', 'width=800,height=600');
+
+      printWindow.document.write('<html><head><title>Print Table</title></head><body>');
+      printWindow.document.write('<h2>Filtered Data Table</h2>');
+      printWindow.document.write(printContent);
+      printWindow.document.write('</body></html>');
+
+      printWindow.document.close();
+      printWindow.print();
+    }
+
+    window.onload = () => {
+      loadUniqueValues(); // Load unique values in dropdown
+    };
+  </script>
+</head>
+<body>
+  <h2>Search & Filter Table with Date Range</h2>
+
+  <!-- Search Dropdown for Column D -->
+  <label for="searchBox">Search by Column D:</label>
+  <select id="searchBox"></select>
+
+  <!-- Date Range Inputs -->
+  <label for="fromDate">From Date:</label>
+  <input type="date" id="fromDate" />
+  
+  <label for="toDate">To Date:</label>
+  <input type="date" id="toDate" />
+  
+  <br><br>
+  <button onclick="loadData()">🔍 Submit</button>
+
+  <br><br>
+  <div id="printArea">
+    <table border="1" id="dataTable"></table>
+    <br>
+    <p id="sumDisplay">Total Sum of Filtered Column Q: Loading...</p>
+  </div>
+
+  <br>
+  <button onclick="printTable()">🖨️ Print Table</button>
+</body>
+</html>
