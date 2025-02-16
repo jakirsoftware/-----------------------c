@@ -7,7 +7,7 @@ function doGet() {
 
 // Function to get unique values for search boxes (Columns D, F & I)
 function getUniqueValues(column) {
-  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBl').getSheetByName("Sheet1");
+  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBlmo').getSheetByName("Sheet1");
   var data = sheet.getRange(column + "2:" + column).getValues().flat(); // Get all values in the specified column
   var uniqueValues = [...new Set(data.filter(String))]; // Remove empty values and duplicates
   return JSON.stringify(uniqueValues);
@@ -15,7 +15,7 @@ function getUniqueValues(column) {
 
 // Function to get filtered data based on search boxes and date range
 function getData(searchQueryD, searchQueryF, searchQueryI, fromDate, toDate) {
-  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBl').getSheetByName("Sheet1");
+  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBlmo').getSheetByName("Sheet1");
   var data = sheet.getRange("A2:Q").getValues(); // Include column Q for sum calculation
 
   // Remove empty rows
@@ -47,7 +47,7 @@ function getData(searchQueryD, searchQueryF, searchQueryI, fromDate, toDate) {
 
 // Function to edit a row in the sheet
 function editRow(rowIndex, updatedData) {
-  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBl').getSheetByName("Sheet1");
+  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBlmo').getSheetByName("Sheet1");
 
   // Row index is zero-based; so we add 2 to account for header row and zero-based index
   var row = sheet.getRange(rowIndex + 2, 1, 1, updatedData.length);
@@ -57,7 +57,7 @@ function editRow(rowIndex, updatedData) {
 
 // Function to delete a row from the sheet
 function deleteRow(rowIndex) {
-  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBl').getSheetByName("Sheet1");
+  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBlmo').getSheetByName("Sheet1");
 
   // Row index is zero-based; so we add 2 to account for header row and zero-based index
   sheet.deleteRow(rowIndex + 2);
@@ -66,10 +66,10 @@ function deleteRow(rowIndex) {
 
 // Function to add a new row to the Google Sheet
 function addNewRowToSheet(newRowData) {
-  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBl').getSheetByName("Sheet1");
+  var sheet = SpreadsheetApp.openById('1ho4S4IXtpcPpVtj1k5phVHjdP-fWIbJG6-CKucOBlmo').getSheetByName("Sheet1");
   sheet.appendRow(newRowData); // Add the row data to the sheet
 }
-----------------------------------------------
+--------------------------------------
 <!DOCTYPE html>
 <html>
 <head>
@@ -124,7 +124,7 @@ function addNewRowToSheet(newRowData) {
       let sumDisplay = document.getElementById("sumDisplay");
 
       // Clear previous data
-      table.innerHTML = "<tr><th>SL</th><th>Column A</th><th>Column B</th><th>Column C (Date)</th><th>Column D</th><th>Column E</th><th>Column F</th><th>Column G</th><th>Column H</th><th>Column I</th><th>Column Q</th><th>Actions</th></tr>";
+      table.innerHTML = "";
 
       data.forEach((row, rowIndex) => {
         let tr = document.createElement("tr");
