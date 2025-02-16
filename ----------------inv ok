@@ -1,23 +1,30 @@
 function doGet() {
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function saveInvoice(invoiceData) {
-  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Invoices");
+// Fetch contacts from the 'Contact' sheet
+function getContacts() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Contact");
+  var data = sheet.getRange("A2:A").getValues().flat();
+  return [...new Set(data.filter(String))];
+}
 
-  if (!sheet) {
-    sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Invoices");
-    sheet.appendRow(["Date", "Contact", "Invoice #", "Description", "Product", "Price", "Quantity", "Total"]);
-  }
+// Fetch product names and prices from the 'Product' sheet
+function getProducts() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Product");
+  var data = sheet.getRange("A2:B").getValues();
+  return data.filter(row => row[0]);
+}
 
-  let invoiceInfo = invoiceData.invoiceInfo;
-  let products = invoiceData.products;
+// Save Invoice Data
+function saveInvoice(invoiceInfo) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Invoices");
 
-  products.forEach(product => {
+  invoiceInfo.products.forEach(function(product) {
     sheet.appendRow([
+      invoiceInfo.transactionType,
       invoiceInfo.date,
       invoiceInfo.contact,
       invoiceInfo.invoiceNumber,
@@ -25,160 +32,282 @@ function saveInvoice(invoiceData) {
       product.productName,
       product.price,
       product.quantity,
-      product.total
+      product.total,
+      invoiceInfo.discountType,
+      invoiceInfo.discountValue,
+      invoiceInfo.discountedTotal,
+      invoiceInfo.cash,
+      invoiceInfo.change,
+      invoiceInfo.finalTotal
     ]);
   });
 
-  return "Invoice Saved Successfully!";
+  return "Invoice Submitted Successfully!";
 }
------------------------------------
+------------------------------------------
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Invoice Entry & Product Table</title>
-  <script>
-    function calculateTotal() {
-      let rows = document.querySelectorAll("#productTable tbody tr");
-      let grandTotal = 0;
-
-      rows.forEach(row => {
-        let price = parseFloat(row.querySelector(".price").value) || 0;
-        let quantity = parseFloat(row.querySelector(".quantity").value) || 0;
-        let total = price * quantity;
-
-        row.querySelector(".total").value = total.toFixed(2);
-        grandTotal += total;
-      });
-
-      document.getElementById("grandTotal").innerText = "Grand Total: $" + grandTotal.toFixed(2);
-    }
-
-    function addProductRow() {
-      let tableBody = document.querySelector("#productTable tbody");
-      let newRow = document.createElement("tr");
-
-      newRow.innerHTML = `
-        <td><input type="text" class="product" placeholder="Enter Product"></td>
-        <td><input type="number" class="price" placeholder="Price" oninput="calculateTotal()"></td>
-        <td><input type="number" class="quantity" placeholder="Quantity" oninput="calculateTotal()"></td>
-        <td><input type="text" class="total" placeholder="Total" readonly></td>
-        <td><button onclick="removeRow(this)">❌</button></td>
-      `;
-
-      tableBody.appendChild(newRow);
-    }
-
-    function removeRow(button) {
-      button.parentElement.parentElement.remove();
-      calculateTotal();
-    }
-
-    function saveInvoice() {
-      let invoiceInfo = {
-        date: document.getElementById("invoiceDate").value,
-        contact: document.getElementById("contact").value,
-        invoiceNumber: document.getElementById("invoiceNumber").value,
-        description: document.getElementById("description").value
-      };
-
-      let products = [];
-      let rows = document.querySelectorAll("#productTable tbody tr");
-
-      rows.forEach(row => {
-        let productName = row.querySelector(".product").value;
-        let price = parseFloat(row.querySelector(".price").value) || 0;
-        let quantity = parseFloat(row.querySelector(".quantity").value) || 0;
-        let total = parseFloat(row.querySelector(".total").value) || 0;
-
-        if (productName && quantity > 0) {
-          products.push({ productName, price, quantity, total });
-        }
-      });
-
-      if (!invoiceInfo.date || !invoiceInfo.invoiceNumber || products.length === 0) {
-        alert("Please fill invoice details and add at least one product.");
-        return;
-      }
-
-      google.script.run.withSuccessHandler(response => {
-        alert(response);
-        location.reload(); // Refresh page after saving
-      }).saveInvoice({ invoiceInfo, products });
-    }
-
-    function printInvoice() {
-      let printWindow = window.open('', '', 'width=800,height=600');
-
-      printWindow.document.write('<html><head><title>Invoice Print</title>');
-      printWindow.document.write('<style>');
-      printWindow.document.write(`
-        @media print {
-          body { font-family: Arial, sans-serif; }
-          .invoice-container { width: 100%; margin-bottom: 20px; }
-          .invoice-container input { border: none; font-size: 16px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th, td { border: 1px solid black; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-          .total-section { font-size: 18px; font-weight: bold; text-align: right; margin-top: 10px; }
-          .remove-btn { display: none; }
-        }
-      `);
-      printWindow.document.write('</style>');
-      printWindow.document.write('</head><body>');
-
-      printWindow.document.write('<h2>Invoice</h2>');
-      printWindow.document.write(document.getElementById("invoiceSection").outerHTML);
-      printWindow.document.write(document.getElementById("printArea").outerHTML);
-
-      printWindow.document.write('</body></html>');
-
-      printWindow.document.close();
-      printWindow.print();
-    }
-  </script>
   <style>
-    body { font-family: Arial, sans-serif; }
-    .invoice-container { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-    .invoice-container label { font-weight: bold; }
-    .invoice-container input { padding: 5px; width: 200px; }
-    .product-table-container { margin-top: 20px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid black; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    .total-section { text-align: right; font-size: 18px; font-weight: bold; margin-top: 10px; }
-    .print-btn, .save-btn, .add-btn { padding: 8px; border: none; cursor: pointer; margin-top: 10px; }
-    .print-btn { background-color: #007bff; color: white; }
-    .save-btn { background-color: #ff9800; color: white; }
-    .add-btn { background-color: #28a745; color: white; }
+    .hidden { display: none; }
+    .btn { margin: 5px; padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    .btn:hover { background-color: #45a049; }
+    table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+    table, th, td { border: 1px solid black; padding: 10px; }
+    .selected { background-color: #008CBA; }
   </style>
 </head>
 <body>
-  <h2>Invoice Entry & Product Table</h2>
+  <h2>Create Invoice</h2>
 
-  <div id="invoiceSection" class="invoice-container">
-    <label for="invoiceDate">Date:</label>
-    <input type="date" id="invoiceDate">
+  <label>Transaction Type:</label>
+  <button class="btn" id="purchaseBtn" onclick="setTransactionType('Purchase')">Purchase</button>
+  <button class="btn" id="saleBtn" onclick="setTransactionType('Sale')">Sale</button>
+  <br><br>
 
-    <label for="contact">Contact:</label>
-    <input type="text" id="contact" placeholder="Enter Contact">
+  <label>Date:</label>
+  <input type="date" id="invoiceDate">
+  <br><br>
 
-    <label for="invoiceNumber">Invoice #:</label>
-    <input type="text" id="invoiceNumber" placeholder="Enter Invoice No.">
+  <label>Contact:</label>
+  <select id="contact">
+    <option value="">Select Contact</option>
+  </select>
+  <br><br>
 
-    <label for="description">Description:</label>
-    <input type="text" id="description" placeholder="Enter Description">
+  <label>Invoice Number:</label>
+  <input type="text" id="invoiceNumber" placeholder="Enter Invoice Number">
+  <br><br>
+
+  <label>Description:</label>
+  <input type="text" id="description" placeholder="Enter Description">
+  <br><br>
+
+  <h4>Products</h4>
+  <table id="productTable">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Total</th>
+        <th>Remove</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <button class="btn" onclick="addProductRow()">Add Product</button>
+  <br><br>
+
+  <h4>Discount</h4>
+  <button class="btn" onclick="setDiscountType('Fixed')">Fixed</button>
+  <button class="btn" onclick="setDiscountType('Percent')">Percent</button>
+  <input type="number" id="discountValue" placeholder="Enter Discount" oninput="calculateTotal()">
+  <br><br>
+
+  <div id="grandTotal">Grand Total: $0.00</div>
+  <div id="discountedTotal">Total After Discount: $0.00</div>
+  <br>
+
+  <label>Cash:</label>
+  <input type="number" id="cash" placeholder="Enter cash amount" oninput="calculateChange()">
+  <br><br>
+
+  <div id="change">Change: $0.00</div>
+  <br><br>
+
+  <button class="btn" onclick="submitInvoice()">Submit Invoice</button>
+  <br><br>
+
+  <div id="successMessage" class="hidden">
+    <p>Invoice Submitted Successfully!</p>
   </div>
 
-  <button class="add-btn" onclick="addProductRow()">➕ Add Product</button>
-  <button class="save-btn" onclick="saveInvoice()">💾 Save Invoice</button>
-  <button class="print-btn" onclick="printInvoice()">🖨️ Print Invoice</button>
+  <br>
+  
+  <button class="btn" onclick="printInvoice()">Print Invoice</button>
 
-  <div id="printArea">
-    <table id="productTable">
-      <thead><tr><th>Product</th><th>Price</th><th>Quantity</th><th>Total</th><th>Action</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <p id="grandTotal" class="total-section">Grand Total: $0.00</p>
-  </div>
+  <script>
+    let selectedTransactionType = "";
+    let discountType = "Fixed";
+    let productData = [];
+    let invoiceInfo = {
+      transactionType: '',
+      date: '',
+      contact: '',
+      invoiceNumber: '',
+      description: '',
+      products: [],
+      discountType: 'Fixed',
+      discountValue: 0,
+      discountedTotal: 0,
+      cash: 0,
+      change: 0,
+      finalTotal: 0
+    };
+
+    window.onload = function() {
+      document.getElementById("invoiceDate").value = new Date().toISOString().split('T')[0];
+
+      google.script.run.withSuccessHandler(function(contacts) {
+        const contactSelect = document.getElementById("contact");
+        contacts.forEach(contact => {
+          let option = document.createElement("option");
+          option.value = contact;
+          option.textContent = contact;
+          contactSelect.appendChild(option);
+        });
+      }).getContacts();
+
+      google.script.run.withSuccessHandler(function(products) {
+        productData = products;
+      }).getProducts();
+    };
+
+    function setTransactionType(type) {
+      selectedTransactionType = type;
+      document.getElementById("purchaseBtn").classList.remove("selected");
+      document.getElementById("saleBtn").classList.remove("selected");
+
+      if (type === "Purchase") {
+        document.getElementById("purchaseBtn").classList.add("selected");
+      } else {
+        document.getElementById("saleBtn").classList.add("selected");
+      }
+    }
+
+    function setDiscountType(type) {
+      discountType = type;
+      calculateTotal();
+    }
+
+    function addProductRow() {
+      let table = document.getElementById("productTable").getElementsByTagName('tbody')[0];
+      let row = table.insertRow();
+
+      let productCell = row.insertCell(0);
+      let select = document.createElement("select");
+      select.innerHTML = '<option value="">Select Product</option>';
+      productData.forEach(product => {
+        let option = document.createElement("option");
+        option.value = product[0];
+        option.textContent = product[0];
+        option.dataset.price = product[1];
+        select.appendChild(option);
+      });
+      select.onchange = function() {
+        let priceField = row.cells[1].getElementsByTagName("input")[0];
+        priceField.value = select.options[select.selectedIndex].dataset.price || 0;
+        calculateTotal();
+      };
+      productCell.appendChild(select);
+
+      let priceCell = row.insertCell(1);
+      let priceInput = document.createElement("input");
+      priceInput.type = "number";
+      priceInput.className = "price";
+      priceInput.readOnly = true;
+      priceCell.appendChild(priceInput);
+
+      let quantityCell = row.insertCell(2);
+      let quantityInput = document.createElement("input");
+      quantityInput.type = "number";
+      quantityInput.className = "quantity";
+      quantityInput.oninput = calculateTotal;
+      quantityCell.appendChild(quantityInput);
+
+      let totalCell = row.insertCell(3);
+      let totalInput = document.createElement("input");
+      totalInput.type = "number";
+      totalInput.className = "total";
+      totalInput.readOnly = true;
+      totalCell.appendChild(totalInput);
+
+      let removeCell = row.insertCell(4);
+      let removeBtn = document.createElement("button");
+      removeBtn.textContent = "X";
+      removeBtn.onclick = function() {
+        row.remove();
+        calculateTotal();
+      };
+      removeCell.appendChild(removeBtn);
+    }
+
+    function calculateTotal() {
+      let total = 0;
+      document.querySelectorAll("#productTable tbody tr").forEach(row => {
+        let price = parseFloat(row.cells[1].getElementsByTagName("input")[0].value) || 0;
+        let quantity = parseFloat(row.cells[2].getElementsByTagName("input")[0].value) || 0;
+        let rowTotal = price * quantity;
+        row.cells[3].getElementsByTagName("input")[0].value = rowTotal.toFixed(2);
+        total += rowTotal;
+      });
+
+      let discount = parseFloat(document.getElementById("discountValue").value) || 0;
+      let discountedTotal = discountType === "Percent" ? total - (total * discount / 100) : total - discount;
+      document.getElementById("discountedTotal").textContent = "Total After Discount: $" + discountedTotal.toFixed(2);
+      calculateChange();
+    }
+
+    function calculateChange() {
+      let cash = parseFloat(document.getElementById("cash").value) || 0;
+      let discountedTotal = parseFloat(document.getElementById("discountedTotal").textContent.replace("Total After Discount: $", "")) || 0;
+      let change = cash - discountedTotal;
+      document.getElementById("change").textContent = "Change: $" + change.toFixed(2);
+    }
+
+    function submitInvoice() {
+      invoiceInfo.transactionType = selectedTransactionType;
+      invoiceInfo.date = document.getElementById("invoiceDate").value;
+      invoiceInfo.contact = document.getElementById("contact").value;
+      invoiceInfo.invoiceNumber = document.getElementById("invoiceNumber").value;
+      invoiceInfo.description = document.getElementById("description").value;
+      
+      invoiceInfo.products = [];
+      document.querySelectorAll("#productTable tbody tr").forEach(row => {
+        let productName = row.cells[0].getElementsByTagName("select")[0].value;
+        let price = parseFloat(row.cells[1].getElementsByTagName("input")[0].value) || 0;
+        let quantity = parseFloat(row.cells[2].getElementsByTagName("input")[0].value) || 0;
+        let total = price * quantity;
+        
+        if (productName) {
+          invoiceInfo.products.push({productName, price, quantity, total});
+        }
+      });
+
+      invoiceInfo.discountValue = parseFloat(document.getElementById("discountValue").value) || 0;
+      invoiceInfo.discountType = discountType;
+      invoiceInfo.discountedTotal = parseFloat(document.getElementById("discountedTotal").textContent.replace("Total After Discount: $", "")) || 0;
+      invoiceInfo.cash = parseFloat(document.getElementById("cash").value) || 0;
+      invoiceInfo.finalTotal = invoiceInfo.discountedTotal;
+
+      google.script.run.withSuccessHandler(function(response) {
+        document.getElementById("successMessage").classList.remove("hidden");
+        clearFormFields();
+        setTimeout(function() {
+          document.getElementById("successMessage").classList.add("hidden");
+        }, 3000);
+      }).saveInvoice(invoiceInfo);
+    }
+
+    function printInvoice() {
+      window.print();
+    }
+
+    function clearFormFields() {
+      // Reset all form fields
+      document.getElementById("invoiceDate").value = new Date().toISOString().split('T')[0];
+      document.getElementById("contact").value = "";
+      document.getElementById("invoiceNumber").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("discountValue").value = "";
+      document.getElementById("cash").value = "";
+      document.getElementById("change").textContent = "Change: $0.00";
+      document.getElementById("grandTotal").textContent = "Grand Total: $0.00";
+      document.getElementById("discountedTotal").textContent = "Total After Discount: $0.00";
+      document.querySelectorAll("#productTable tbody tr").forEach(row => row.remove());
+    }
+  </script>
 </body>
 </html>
