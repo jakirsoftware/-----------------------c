@@ -1,0 +1,233 @@
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate();
+}
+
+function getContacts() {
+  const sheet = SpreadsheetApp.openById('1PC_zhUHzQWaDoftvbSxcpC3nr7J1Zv20fXeF7kliy6A').getSheetByName('Contact');
+  const data = sheet.getRange('A2:A').getValues();
+  return data.filter(contact => contact[0] != "");
+}
+
+function getProducts() {
+  const sheet = SpreadsheetApp.openById('1PC_zhUHzQWaDoftvbSxcpC3nr7J1Zv20fXeF7kliy6A').getSheetByName('Product');
+  const data = sheet.getRange('A2:B').getValues();
+  return data.filter(product => product[0] != "");
+}
+
+function submitInvoiceToSheet(invoiceData) {
+  const sheet = SpreadsheetApp.openById('1PC_zhUHzQWaDoftvbSxcpC3nr7J1Zv20fXeF7kliy6A').getSheetByName('Invoice');
+  let lastRow = sheet.getLastRow() + 1;
+
+  // Add Invoice details to the sheet
+  sheet.getRange(lastRow, 1).setValue(invoiceData.id);
+  sheet.getRange(lastRow, 2).setValue(invoiceData.date);
+  sheet.getRange(lastRow, 3).setValue(invoiceData.type);
+  sheet.getRange(lastRow, 4).setValue(invoiceData.number);
+  sheet.getRange(lastRow, 5).setValue(invoiceData.contactName);
+  sheet.getRange(lastRow, 6).setValue(invoiceData.description);
+  
+  // Add items to the sheet
+  invoiceData.items.forEach((item, index) => {
+    sheet.getRange(lastRow + index, 7).setValue(item.productName);
+    sheet.getRange(lastRow + index, 8).setValue(item.price);
+    sheet.getRange(lastRow + index, 9).setValue(item.quantity);
+    sheet.getRange(lastRow + index, 10).setValue(item.amount);
+  });
+
+  // Add discount and total to the sheet
+  sheet.getRange(lastRow, 11).setValue(invoiceData.discountType);
+  sheet.getRange(lastRow, 12).setValue(invoiceData.discount);
+}
+----------------------
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      /* Add styling as needed */
+    </style>
+  </head>
+  <body>
+    <h2>Invoice Form</h2>
+
+    <div>
+      <label for="invoiceID">Invoice ID:</label>
+      <input type="text" id="invoiceID" disabled>
+    </div>
+
+    <div>
+      <label for="invoiceDate">Date:</label>
+      <input type="date" id="invoiceDate">
+    </div>
+
+    <div>
+      <label for="invoiceType">Invoice Type:</label>
+      <select id="invoiceType">
+        <option value="Purchase">Purchase</option>
+        <option value="Sale">Sale</option>
+        <option value="Return">Return</option>
+        <option value="Draft">Draft</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="invoiceNumber">Invoice Number:</label>
+      <input type="text" id="invoiceNumber" disabled>
+    </div>
+
+    <div>
+      <label for="contactName">Contact Name:</label>
+      <select id="contactName"></select>
+    </div>
+
+    <div>
+      <label for="description">Description:</label>
+      <input type="text" id="description">
+    </div>
+
+    <button onclick="addItem()">Add Item</button>
+
+    <div id="itemList"></div>
+
+    <div>
+      <label for="discountType">Discount Type:</label>
+      <select id="discountType">
+        <option value="Fixed">Fixed</option>
+        <option value="Percent">Percent</option>
+      </select>
+      <input type="number" id="discount" placeholder="Discount">
+    </div>
+
+    <div>
+      <a id="subTotal">Sub Total:</a>
+    </div>
+
+    <div>
+      <a id="grossTotal">Gross Total:</a>
+    </div>
+
+    <button onclick="submitInvoice()">Submit</button>
+
+    <script>
+      // Auto-generate Invoice ID based on the current timestamp
+      function generateInvoiceID() {
+        let now = new Date();
+        let year = now.getFullYear().toString().slice(-2);
+        let month = String(now.getMonth() + 1).padStart(2, '0');
+        let day = String(now.getDate()).padStart(2, '0');
+        let hours = String(now.getHours()).padStart(2, '0');
+        let minutes = String(now.getMinutes()).padStart(2, '0');
+        let seconds = String(now.getSeconds()).padStart(2, '0');
+        return `${year}${month}${day}${hours}${minutes}${seconds}`;
+      }
+
+      document.getElementById('invoiceID').value = generateInvoiceID();
+
+      // Load contacts into the dropdown from the "Contact" sheet
+      function loadContacts() {
+        google.script.run.withSuccessHandler(function(contacts) {
+          const contactSelect = document.getElementById('contactName');
+          contacts.forEach(contact => {
+            let option = document.createElement('option');
+            option.value = contact[0];
+            option.textContent = contact[0]; // Assuming contact name is in column A
+            contactSelect.appendChild(option);
+          });
+        }).getContacts();
+      }
+
+      // Load product names into the dropdown and prices
+      function loadProducts() {
+        google.script.run.withSuccessHandler(function(products) {
+          const itemList = document.getElementById('itemList');
+          const newItem = document.createElement('div');
+          newItem.innerHTML = `
+            <label for="productName">Product Name:</label>
+            <select class="productName" onchange="updateAmount(this)">
+              ${products.map(product => `<option value="${product[0]}">${product[0]}</option>`).join('')}
+            </select>
+            <label for="price">Price:</label>
+            <input type="number" class="price" onchange="updateAmount(this)">
+            <label for="quantity">Quantity:</label>
+            <input type="number" class="quantity" onchange="updateAmount(this)">
+            <label for="amount">Amount:</label>
+            <input type="number" class="amount" disabled>
+            <button onclick="deleteItem(this)">Delete</button>
+          `;
+          itemList.appendChild(newItem);
+        }).getProducts();
+      }
+
+      function addItem() {
+        loadProducts();
+      }
+
+      function deleteItem(button) {
+        let item = button.parentNode;
+        item.remove();
+        calculateTotal();
+      }
+
+      // Update Amount based on Price * Quantity
+      function updateAmount(element) {
+        let item = element.closest('div');
+        let price = parseFloat(item.querySelector('.price').value) || 0;
+        let quantity = parseInt(item.querySelector('.quantity').value) || 0;
+        let amount = price * quantity;
+        item.querySelector('.amount').value = amount;
+        calculateTotal();
+      }
+
+      // Calculate subtotal and gross total
+      function calculateTotal() {
+        let total = 0;
+        let items = document.querySelectorAll('.amount');
+        items.forEach(item => {
+          total += parseFloat(item.value || 0);
+        });
+
+        let discountType = document.getElementById('discountType').value;
+        let discount = parseFloat(document.getElementById('discount').value || 0);
+        let grossTotal = total;
+
+        if (discountType === 'Percent') {
+          grossTotal = total - (total * discount / 100);
+        } else if (discountType === 'Fixed') {
+          grossTotal = total - discount;
+        }
+
+        document.getElementById('subTotal').innerText = 'Sub Total: ' + total;
+        document.getElementById('grossTotal').innerText = 'Gross Total: ' + grossTotal;
+      }
+
+      function submitInvoice() {
+        let invoiceData = {
+          id: document.getElementById('invoiceID').value,
+          date: document.getElementById('invoiceDate').value,
+          type: document.getElementById('invoiceType').value,
+          number: document.getElementById('invoiceNumber').value,
+          contactName: document.getElementById('contactName').value,
+          description: document.getElementById('description').value,
+          items: [],
+          discountType: document.getElementById('discountType').value,
+          discount: document.getElementById('discount').value
+        };
+
+        let items = document.querySelectorAll('#itemList div');
+        items.forEach(item => {
+          let productName = item.querySelector('.productName').value;
+          let price = item.querySelector('.price').value;
+          let quantity = item.querySelector('.quantity').value;
+          let amount = item.querySelector('.amount').value;
+          invoiceData.items.push({ productName, price, quantity, amount });
+        });
+
+        google.script.run.submitInvoiceToSheet(invoiceData);
+      }
+
+      // Load contacts and products when the page loads
+      window.onload = function() {
+        loadContacts();
+      }
+    </script>
+  </body>
+</html>
