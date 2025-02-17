@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice Form with Table</title>
+  <style>
+    table {
+    padding: 20px;
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    td {
+      padding: 5px;
+      border: 1px solid #ddd;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+
+  <form>
+    <table>
+      <tr>
+        <td>
+          <label for="invoiceID">Invoice ID:</label>
+          <input type="text" id="invoiceID" disabled>
+        </td>
+        <td>
+          <label for="invoiceDate">Date:</label>
+          <input type="date" id="invoiceDate" value="">
+        </td>
+        <td>
+          <label for="invoiceType">Invoice Type:</label>
+          <select id="invoiceType">
+            <option value="Purchase">Purchase</option>
+            <option value="Sale">Sale</option>
+            <option value="Return">Return</option>
+            <option value="Draft">Draft</option>
+          </select>
+        </td>
+      </tr>
+    </table>
+  </form>
+
+</body>
+</html>
