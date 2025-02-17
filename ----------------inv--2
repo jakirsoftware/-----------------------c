@@ -1,0 +1,165 @@
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate();
+}
+
+function submitInvoice(data) {
+  var sheet = SpreadsheetApp.openById('1PC_zhUHzQWaDoftvbSxcpC3nr7J1Zv20fXeF7kliy6A').getSheetByName('Invoice');
+  var lastRow = sheet.getLastRow() + 1;
+  
+  sheet.getRange(lastRow, 1).setValue(data.time);
+  sheet.getRange(lastRow, 2).setValue(data.id);
+  sheet.getRange(lastRow, 3).setValue(data.date);
+  sheet.getRange(lastRow, 4).setValue(data.invoice);
+  sheet.getRange(lastRow, 5).setValue(data.type);
+  sheet.getRange(lastRow, 6).setValue(data.contact);
+  sheet.getRange(lastRow, 7).setValue(data.balance);
+  sheet.getRange(lastRow, 8).setValue(data.items);  // Can store JSON or array of items
+  sheet.getRange(lastRow, 9).setValue(data.subTotal);
+  sheet.getRange(lastRow, 10).setValue(data.discount);
+  sheet.getRange(lastRow, 11).setValue(data.grossTotal);
+  
+  return "Success!";
+}
+---------------------
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    <h1>Invoice Creation</h1>
+    
+    <label for="time">Time:</label>
+    <input type="text" id="time" value="<?= new Date().toLocaleString() ?>" disabled><br>
+
+    <label for="id">ID:</label>
+    <input type="text" id="id"><br>
+
+    <label for="date">Date:</label>
+    <input type="date" id="date" value="<?= new Date().toISOString().split('T')[0] ?>"><br>
+
+    <label for="invoice">Invoice:</label>
+    <input type="text" id="invoice"><br>
+
+    <label for="type">Type:</label>
+    <select id="type">
+      <option value="Purchase">Purchase</option>
+      <option value="Sale">Sale</option>
+      <option value="Return">Return</option>
+      <option value="Draft">Draft</option>
+    </select><br>
+
+    <label for="contact">Contact:</label>
+    <select id="contact">
+      <!-- Populate from 'Contact' Sheet -->
+    </select><br>
+
+    <label for="balance">Balance:</label>
+    <input type="text" id="balance" disabled><br>
+
+    <label for="items">Items:</label>
+    <button onclick="addItem()">Add Item</button><br>
+
+    <div id="items-container"></div>
+    
+    <label for="subTotal">Sub Total:</label>
+    <input type="text" id="subTotal" disabled><br>
+
+    <label for="discount">Discount:</label>
+    <input type="number" id="discountValue"><br>
+    <select id="discountType">
+      <option value="Fixed">Fixed</option>
+      <option value="Percent">Percent</option>
+    </select><br>
+
+    <label for="grossTotal">Gross Total:</label>
+    <input type="text" id="grossTotal" disabled><br>
+
+    <button onclick="submitInvoice()">Submit Invoice</button>
+    <p id="notice"></p>
+    
+    <script>
+      function addItem() {
+        var container = document.getElementById('items-container');
+        var itemDiv = document.createElement('div');
+        
+        itemDiv.innerHTML = `
+          <label for="product">Product:</label>
+          <select class="product"></select><br>
+          
+          <label for="price">Price:</label>
+          <input type="text" class="price" disabled><br>
+          
+          <label for="quantity">Quantity:</label>
+          <input type="number" class="quantity"><br>
+          
+          <label for="amount">Amount:</label>
+          <input type="text" class="amount" disabled><br>
+          
+          <label for="note">Note:</label>
+          <input type="text" class="note"><br>
+          
+          <button onclick="deleteItem(this)">Delete</button><br>
+        `;
+        
+        container.appendChild(itemDiv);
+      }
+      
+      function deleteItem(button) {
+        button.parentElement.remove();
+      }
+
+      function submitInvoice() {
+        var data = {
+          time: new Date().toLocaleString(),
+          id: document.getElementById('id').value,
+          date: document.getElementById('date').value,
+          invoice: document.getElementById('invoice').value,
+          type: document.getElementById('type').value,
+          contact: document.getElementById('contact').value,
+          balance: document.getElementById('balance').value,
+          items: collectItems(),  // Collect all items data
+          subTotal: calculateSubTotal(),
+          discount: document.getElementById('discountValue').value,
+          grossTotal: calculateGrossTotal()
+        };
+        
+        google.script.run.withSuccessHandler(function(response) {
+          document.getElementById('notice').innerText = response;
+          clearForm();
+        }).submitInvoice(data);
+      }
+
+      function collectItems() {
+        var items = [];
+        var products = document.querySelectorAll('.product');
+        var quantities = document.querySelectorAll('.quantity');
+        var prices = document.querySelectorAll('.price');
+        var notes = document.querySelectorAll('.note');
+
+        for (var i = 0; i < products.length; i++) {
+          items.push({
+            product: products[i].value,
+            price: prices[i].value,
+            quantity: quantities[i].value,
+            note: notes[i].value
+          });
+        }
+        
+        return items;
+      }
+
+      function calculateSubTotal() {
+        // Calculate sub total based on item prices and quantities
+      }
+
+      function calculateGrossTotal() {
+        // Subtotal minus discount
+      }
+
+      function clearForm() {
+        // Clear all fields
+      }
+    </script>
+  </body>
+</html>
