@@ -1,0 +1,195 @@
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate();
+}
+
+function getContacts() {
+  const sheet = SpreadsheetApp.openById('1PC_zhUHzQWaDoftvbSxcpC3nr7J1Zv20fXeF7kliy6A').getSheetByName('Contact');
+  const data = sheet.getRange('A2:B').getValues();
+  return data.filter(contact => contact[0] != "");
+}
+
+function getProducts() {
+  const sheet = SpreadsheetApp.openById('1PC_zhUHzQWaDoftvbSxcpC3nr7J1Zv20fXeF7kliy6A').getSheetByName('Product');
+  const data = sheet.getRange('A2:B').getValues(); // A = Product Name, B = Price
+  return data.filter(product => product[0] != "");
+}
+
+function submitInvoiceToSheet(invoiceData) {
+  const sheet = SpreadsheetApp.openById('1PC_zhUHzQWaDoftvbSxcpC3nr7J1Zv20fXeF7kliy6A').getSheetByName('Invoice');
+  let lastRow = sheet.getLastRow() + 1;
+
+  // Add invoice details
+  sheet.getRange(lastRow, 1).setValue(invoiceData.id);
+  sheet.getRange(lastRow, 2).setValue(invoiceData.date);
+  sheet.getRange(lastRow, 3).setValue(invoiceData.number);
+  sheet.getRange(lastRow, 4).setValue(invoiceData.type);
+  sheet.getRange(lastRow, 5).setValue(invoiceData.contact);
+  sheet.getRange(lastRow, 6).setValue(invoiceData.balance);
+
+  // Add items
+  invoiceData.items.forEach((item, index) => {
+    sheet.getRange(lastRow + index, 7).setValue(item.productName);
+    sheet.getRange(lastRow + index, 8).setValue(item.price);
+    sheet.getRange(lastRow + index, 9).setValue(item.quantity);
+    sheet.getRange(lastRow + index, 10).setValue(item.amount);
+    sheet.getRange(lastRow + index, 11).setValue(item.note);
+  });
+
+  sheet.getRange(lastRow, 12).setValue(invoiceData.discountType);
+  sheet.getRange(lastRow, 13).setValue(invoiceData.discount);
+  sheet.getRange(lastRow, 14).setValue(invoiceData.grossTotal);
+}
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    /* Basic Styling */
+    label, input, select {
+      display: block;
+      margin-bottom: 10px;
+    }
+    #itemList div {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Invoice Form</h2>
+
+  <label for="invoiceID">Invoice ID:</label>
+  <input type="text" id="invoiceID" disabled>
+
+  <label for="invoiceDate">Date:</label>
+  <input type="date" id="invoiceDate">
+
+  <label for="invoiceType">Invoice Type:</label>
+  <select id="invoiceType">
+    <option value="Purchase">Purchase</option>
+    <option value="Sale">Sale</option>
+    <option value="Return">Return</option>
+    <option value="Draft">Draft</option>
+  </select>
+
+  <label for="invoiceNumber">Invoice Number:</label>
+  <input type="text" id="invoiceNumber" placeholder="Unique Number">
+
+  <label for="contactName">Contact Name:</label>
+  <select id="contactName"></select>
+
+  <label for="balance">Balance:</label>
+  <input type="number" id="balance" placeholder="Enter balance">
+
+  <button onclick="addItem()">Add Item</button>
+
+  <div id="itemList"></div>
+
+  <label for="discountType">Discount Type:</label>
+  <select id="discountType">
+    <option value="Fixed">Fixed</option>
+    <option value="Percent">Percent</option>
+  </select>
+  <input type="number" id="discount" placeholder="Discount Amount" onchange="calculateTotal()">
+
+  <p id="subTotal">Sub Total: 0</p>
+  <p id="grossTotal">Gross Total: 0</p>
+
+  <button onclick="submitInvoice()">Submit Invoice</button>
+
+  <p id="successMessage" style="display:none; color: green;">Success! Invoice submitted.</p>
+
+  <script>
+    function generateInvoiceID() {
+      let now = new Date();
+      return now.getFullYear() + '' + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0') + 
+             now.getHours().toString().padStart(2, '0') + now.getMinutes().toString().padStart(2, '0') + now.getSeconds().toString().padStart(2, '0');
+    }
+
+    document.getElementById('invoiceID').value = generateInvoiceID();
+
+    function loadContacts() {
+      google.script.run.withSuccessHandler(function(contacts) {
+        const contactSelect = document.getElementById('contactName');
+        contacts.forEach(contact => {
+          let option = document.createElement('option');
+          option.value = contact[0];
+          option.textContent = contact[0];
+          contactSelect.appendChild(option);
+        });
+      }).getContacts();
+    }
+
+    function addItem() {
+      google.script.run.withSuccessHandler(function(products) {
+        const itemList = document.getElementById('itemList');
+        let newItem = document.createElement('div');
+        newItem.innerHTML = `
+          <select class="productName" onchange="updatePrice(this)">
+            ${products.map(p => `<option value="${p[0]}" data-price="${p[1]}">${p[0]}</option>`).join('')}
+          </select>
+          <input type="number" class="price" placeholder="Price" disabled>
+          <input type="number" class="quantity" placeholder="Quantity" oninput="updateAmount(this)">
+          <input type="number" class="amount" placeholder="Amount" disabled>
+          <input type="text" class="note" placeholder="Note">
+          <button onclick="deleteItem(this)">Delete</button>
+        `;
+        itemList.appendChild(newItem);
+      }).getProducts();
+    }
+
+    function updatePrice(select) {
+      let price = select.options[select.selectedIndex].dataset.price;
+      select.parentNode.querySelector('.price').value = price;
+      updateAmount(select);
+    }
+
+    function updateAmount(element) {
+      let item = element.closest('div');
+      let price = parseFloat(item.querySelector('.price').value) || 0;
+      let quantity = parseInt(item.querySelector('.quantity').value) || 0;
+      item.querySelector('.amount').value = price * quantity;
+      calculateTotal();
+    }
+
+    function deleteItem(button) {
+      button.parentNode.remove();
+      calculateTotal();
+    }
+
+    function calculateTotal() {
+      let total = 0;
+      document.querySelectorAll('.amount').forEach(item => total += parseFloat(item.value || 0));
+
+      let discountType = document.getElementById('discountType').value;
+      let discount = parseFloat(document.getElementById('discount').value) || 0;
+      let grossTotal = (discountType === 'Percent') ? total - (total * discount / 100) : total - discount;
+
+      document.getElementById('subTotal').innerText = 'Sub Total: ' + total;
+      document.getElementById('grossTotal').innerText = 'Gross Total: ' + grossTotal;
+    }
+
+    function submitInvoice() {
+      let invoiceData = {
+        id: document.getElementById('invoiceID').value,
+        date: document.getElementById('invoiceDate').value,
+        type: document.getElementById('invoiceType').value,
+        number: document.getElementById('invoiceNumber').value,
+        contact: document.getElementById('contactName').value,
+        balance: document.getElementById('balance').value,
+        items: [],
+        discountType: document.getElementById('discountType').value,
+        discount: document.getElementById('discount').value,
+        grossTotal: document.getElementById('grossTotal').innerText.split(': ')[1]
+      };
+
+      google.script.run.submitInvoiceToSheet(invoiceData);
+      document.getElementById('successMessage').style.display = 'block';
+    }
+
+    window.onload = loadContacts;
+  </script>
+</body>
+</html>
