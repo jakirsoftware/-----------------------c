@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      function findText() {
+        var sheetName = document.getElementById("sheetInput").value;
+        var searchText = document.getElementById("searchInput").value;
+        var columns = document.getElementById("columnsInput").value; // Get columns input
+        
+        if (!sheetName) {
+          alert("Please enter a sheet name.");
+          return;
+        }
+        
+        google.script.run.withSuccessHandler(updateCount).findText(sheetName, searchText, columns);
+      }
+
+      function updateCount(result) {
+        if (result === "Sheet not found") {
+          alert("Sheet not found! Please check the name.");
+          return;
+        }
+        document.getElementById("countNotice").innerText = "Matches Found: " + result;
+        document.getElementById("renameBtn").disabled = result === 0;
+      }
+
+      function renameText() {
+        var sheetName = document.getElementById("sheetInput").value;
+        var oldText = document.getElementById("searchInput").value;
+        var newText = document.getElementById("renameInput").value;
+        var columns = document.getElementById("columnsInput").value; // Get columns input
+
+        google.script.run.withSuccessHandler(updateRenameCount).renameText(sheetName, oldText, newText, columns);
+      }
+
+      function updateRenameCount(result) {
+        if (result === "Sheet not found") {
+          alert("Sheet not found! Please check the name.");
+          return;
+        }
+        document.getElementById("doneNotice").innerText = "Renamed: " + result + " occurrences";
+      }
+    </script>
+  </head>
+  <body>
+    <label>Sheet Name:</label>
+    <input type="text" id="sheetInput" placeholder="Enter sheet name (e.g., Sheet1)">
+
+    <br><br>
+
+    <label>Columns (comma separated, e.g., A,B,C):</label>
+    <input type="text" id="columnsInput" placeholder="Enter columns (e.g., A,B,C)">
+    
+    <br><br>
+
+    <input type="text" id="searchInput" placeholder="Find Text">
+    <button onclick="findText()">Find</button>
+    <p id="countNotice"></p>
+
+    <input type="text" id="renameInput" placeholder="New Name">
+    <button id="renameBtn" onclick="renameText()" disabled>Rename</button>
+    <p id="doneNotice"></p>
+  </body>
+</html>
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index');
+}
+
+// Function to find text in the specified columns of the sheet
+function findText(sheetName, searchText, columns) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) return "Sheet not found";
+  
+  var data = sheet.getDataRange().getValues(); // Get all data
+  var count = 0;
+
+  // If columns are provided, split them into an array
+  if (columns) {
+    var columnIndexes = columns.split(',').map(function(col) { return col.trim().toUpperCase().charCodeAt(0) - 65; });
+    
+    // Search within the specified columns only
+    for (var i = 0; i < data.length; i++) {
+      columnIndexes.forEach(function(colIndex) {
+        if (data[i][colIndex] == searchText) {
+          count++;
+        }
+      });
+    }
+  } else {
+    // Search the entire sheet
+    for (var i = 0; i < data.length; i++) {
+      for (var j = 0; j < data[i].length; j++) {
+        if (data[i][j] == searchText) {
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
+// Function to rename text in the specified columns of the sheet
+function renameText(sheetName, oldText, newText, columns) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) return "Sheet not found";
+
+  var range = sheet.getDataRange();
+  var data = range.getValues();
+  var updatedCount = 0;
+
+  // If columns are provided, split them into an array
+  if (columns) {
+    var columnIndexes = columns.split(',').map(function(col) { return col.trim().toUpperCase().charCodeAt(0) - 65; });
+
+    // Rename within the specified columns only
+    for (var i = 0; i < data.length; i++) {
+      columnIndexes.forEach(function(colIndex) {
+        if (data[i][colIndex] == oldText) {
+          data[i][colIndex] = newText;
+          updatedCount++;
+        }
+      });
+    }
+  } else {
+    // Rename text across the entire sheet
+    for (var i = 0; i < data.length; i++) {
+      for (var j = 0; j < data[i].length; j++) {
+        if (data[i][j] == oldText) {
+          data[i][j] = newText;
+          updatedCount++;
+        }
+      }
+    }
+  }
+
+  range.setValues(data);
+  return updatedCount;
+}
