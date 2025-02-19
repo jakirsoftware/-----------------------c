@@ -2054,7 +2054,16 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
             notice.textContent = "Invoice data submitted successfully!";
             notice.style.display = "block";
 
-            resetForm();
+            // Clear the fields after submission
+            document.getElementById("invoiceNumber").value = "";
+            document.getElementById("date").value = "";
+            document.getElementById("contact").value = "";
+            document.getElementById("cash").checked = false;
+            document.getElementById("bank").checked = false;
+            document.getElementById("bankName").value = "";
+            document.getElementById("description").value = "";
+
+            resetForm();  // Reset Fund and Sector selections
         }
 
         // Load Type when the page is ready
@@ -2112,3 +2121,4 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
 
 </body>
 </html>
+
