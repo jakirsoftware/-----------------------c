@@ -1577,3 +1577,276 @@ function saveInvoiceData(invoiceNumber, type, fund, sector) {
 
 </body>
 </html>
+--------------------------------
+function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash, bank, bankName, description) {
+    var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA').getSheetByName("Data");
+
+    // If the sheet doesn't exist, create it and add the header row
+    if (!sheet) {
+        sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Data");
+        sheet.appendRow(["Invoice Number", "Type", "Fund", "Sector", "Date", "Contact", "Cash", "Bank", "Bank Name", "Description"]); // Add header row for new fields
+    }
+
+    // Append the data as a new row
+    sheet.appendRow([invoiceNumber, type, fund, sector, date, contact, cash, bank, bankName, description]);
+}
+-------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+        }
+        input, textarea, .option-buttons {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+            width: 100%;
+        }
+        .option-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .option-button {
+            padding: 10px 15px;
+            border: 1px solid #007bff;
+            background-color: white;
+            color: #007bff;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .option-button.selected {
+            background-color: #007bff;
+            color: white;
+        }
+        .opt-button {
+            padding: 10px 15px;
+            border: 1px solid #28a745;
+            background-color: white;
+            color: #28a745;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .opt-button:hover {
+            background-color: #28a745;
+            color: white;
+        }
+        #notice {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            font-size: 16px;
+            display: none; /* Hidden by default */
+            border-radius: 5px;
+        }
+    </style>
+    <script>
+        var selectedType = null;
+        var selectedFund = null;
+        var selectedSector = null;
+
+        // Fetch Type from Google Apps Script
+        function fetchType() {
+            google.script.run.withSuccessHandler(displayType).getType();
+        }
+
+        // Fetch Fund based on selected Type
+        function fetchFundByType(type) {
+            google.script.run.withSuccessHandler(displayFund).getFundByType(type);
+        }
+
+        // Fetch Sector based on selected Type and Fund
+        function fetchSectorByType(type, fund) {
+            google.script.run.withSuccessHandler(displaySector).getSectorByType(type, fund);
+        }
+
+        // Display the Fund options
+        function displayFund(Fund) {
+            var container = document.getElementById("fundContainer");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!Fund || Fund.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No Fund available for the selected type.</p>";
+                return;
+            }
+
+            Fund.forEach(fund => {
+                var button = document.createElement("button");
+                button.textContent = fund;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    document.querySelectorAll("#fundContainer .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedFund = fund;  
+                    fetchSectorByType(selectedType, fund);  
+                    updateSelectedOptions();
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Display the Sector options
+        function displaySector(Sector) {
+            var container = document.getElementById("sectorContainer");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!Sector || Sector.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No Sector available for the selected type and fund.</p>";
+                return;
+            }
+
+            Sector.forEach(option => {
+                var button = document.createElement("button");
+                button.textContent = option;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    document.querySelectorAll("#sectorContainer .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedSector = option;  
+                    updateSelectedOptions();  
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Display the Type options
+        function displayType(Type) {
+            var container = document.getElementById("typeContainer");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!Type || Type.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No Type available.</p>";
+                return;
+            }
+
+            Type.forEach(type => {
+                var button = document.createElement("button");
+                button.textContent = type;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    document.querySelectorAll("#typeContainer .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedType = type;  
+                    fetchFundByType(type);  
+                    updateSelectedOptions();
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Update the hidden input with selected options (allowing Fund & Sector to be optional)
+        function updateSelectedOptions() {
+            let selectedText = `Type: ${selectedType || "N/A"}`;
+            
+            if (selectedFund) selectedText += `, Fund: ${selectedFund}`;
+            if (selectedSector) selectedText += `, Sector: ${selectedSector}`;
+
+            document.getElementById("selectedOption").value = selectedText;
+            console.log("Selected Options: ", document.getElementById("selectedOption").value);
+        }
+
+        // Reset or reload the form when Opt button is clicked
+        function resetForm() {
+            selectedType = null;
+            selectedFund = null;
+            selectedSector = null;
+
+            document.getElementById("typeContainer").innerHTML = "";
+            document.getElementById("fundContainer").innerHTML = "";
+            document.getElementById("sectorContainer").innerHTML = "";
+
+            fetchType();
+        }
+
+        // Submit form data to Google Sheets
+        function submitForm() {
+            var invoiceNumber = document.getElementById("invoiceNumber").value;
+            var selectedOption = document.getElementById("selectedOption").value;
+            var date = document.getElementById("date").value;
+            var contact = document.getElementById("contact").value;
+            var cash = document.getElementById("cash").checked;
+            var bank = document.getElementById("bank").checked;
+            var bankName = document.getElementById("bankName").value;
+            var description = document.getElementById("description").value;
+
+            if (!invoiceNumber || !selectedType) {
+                alert("Please enter an invoice number and select at least one option from Type.");
+                return;
+            }
+
+            let fundValue = selectedFund || "";
+            let sectorValue = selectedSector || "";
+
+            google.script.run.saveInvoiceData(invoiceNumber, selectedType, fundValue, sectorValue, date, contact, cash, bank, bankName, description);
+
+            var notice = document.getElementById("notice");
+            notice.textContent = "Invoice data submitted successfully!";
+            notice.style.display = "block";
+
+            resetForm();
+        }
+
+        // Load Type when the page is ready
+        document.addEventListener("DOMContentLoaded", function() {
+            fetchType();
+        });
+    </script>
+</head>
+<body>
+
+    <h2>Invoice Form</h2>
+
+    <label for="invoiceNumber">Invoice Number:</label>
+    <input type="text" id="invoiceNumber" placeholder="Enter Invoice Number">
+
+    <label for="date">Date:</label>
+    <input type="date" id="date">
+
+    <label for="contact">Contact:</label>
+    <input type="text" id="contact" placeholder="Enter Contact Info">
+
+    <label for="cash">Cash:</label>
+    <input type="checkbox" id="cash"> Cash Payment
+
+    <label for="bank">Bank:</label>
+    <input type="checkbox" id="bank"> Bank Payment
+
+    <label for="bankName">Bank Name:</label>
+    <input type="text" id="bankName" placeholder="Enter Bank Name (if applicable)">
+
+    <label for="description">Description:</label>
+    <textarea id="description" placeholder="Enter a description of the invoice"></textarea>
+
+    <div class="option-buttons" id="typeContainer">
+        <p>Loading Type...</p>
+    </div>
+
+    <div class="option-buttons" id="fundContainer">
+        <p>Loading Fund...</p>
+    </div>
+
+    <div class="option-buttons" id="sectorContainer">
+        <p>Loading Sector...</p>
+    </div>
+
+    <input type="hidden" id="selectedOption">
+
+    <button class="opt-button" onclick="resetForm()">Reset Options</button>
+    <button class="opt-button" onclick="submitForm()">Submit</button>
+
+    <div id="notice"></div>
+
+</body>
+</html>
