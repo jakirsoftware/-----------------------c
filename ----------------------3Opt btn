@@ -1028,3 +1028,535 @@ function saveInvoiceData(date, invoiceNumber, type, fund, sector, contact, addre
 
 </body>
 </html>
+
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate().setTitle("Data Entry")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+
+
+
+
+
+
+function validateUser(user, password) {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control");
+  var data = sheet.getRange("D2:F").getValues(); // Get User, Password, and Info from F
+
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0].toString() === user.toString() && data[i][1] === password) {
+      return data[i][2]; // Return corresponding value from column F
+    }
+  }
+  
+  return false; // Invalid credentials
+}
+
+
+
+
+
+
+
+
+// Fetch Type from the 'Control' sheet
+function getType() { 
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control");
+  var data = sheet.getRange("A2:A").getValues().flat(); 
+  return [...new Set(data.filter(String))]; // Remove duplicates & empty values
+}
+
+// Fetch Fund based on the selected Type from the 'Control' sheet
+function getFundByType(type) {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control");
+  var Type = sheet.getRange("A2:A").getValues().flat();
+  var Fund = sheet.getRange("B2:B").getValues().flat();
+  
+  var filteredFund = [];
+  
+  // Loop through Type and Fund and match the selected type
+  for (var i = 0; i < Type.length; i++) {
+    if (Type[i] === type && Fund[i]) {
+      filteredFund.push(Fund[i]);
+    }
+  }
+
+  return [...new Set(filteredFund.filter(String))]; // Remove duplicates & empty values
+}
+
+// Fetch Sector based on selected Type and Fund from 'Control' sheet
+function getSectorByType(type, fund) {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control");
+  var Type = sheet.getRange("A2:A").getValues().flat();
+  var Fund = sheet.getRange("B2:B").getValues().flat();
+  var Sector = sheet.getRange("C2:C").getValues().flat();
+
+  var filteredSector = [];
+
+  // Loop through Type, Fund, and Sector and match the selected type and fund
+  for (var i = 0; i < Type.length; i++) {
+    if (Type[i] === type && Fund[i] === fund && Sector[i]) {
+      filteredSector.push(Sector[i]);
+    }
+  }
+
+  return [...new Set(filteredSector.filter(String))]; // Remove duplicates & empty values
+}
+
+
+
+
+// Fetch contacts from the 'Contact' sheet
+function getContacts() {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Contact");
+  var data = sheet.getRange("A2:A").getValues().flat();
+  return [...new Set(data.filter(String))]; // Remove duplicates & empty values
+}
+
+// Fetch data2 names and prices from the 'data2' sheet
+function getdata2s() {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("data2");
+  var data = sheet.getRange("A2:B").getValues();
+  return data.filter(row => row[0]); // Remove empty rows
+}
+
+
+
+
+
+
+
+// Function to generate a unique invoice ID in YYMMDDHHMMSSmmm format
+function tid() {
+  var now = new Date();
+  var yy = now.getFullYear().toString().slice(-2);
+  var mm = (now.getMonth() + 1).toString().padStart(2, '0');
+  var dd = now.getDate().toString().padStart(2, '0');
+  var hh = now.getHours().toString().padStart(2, '0');
+  var min = now.getMinutes().toString().padStart(2, '0');
+  var ss = now.getSeconds().toString().padStart(2, '0');
+  var ms = now.getMilliseconds().toString().padStart(3, '0');
+  
+  return `${yy}${mm}${dd}${hh}${min}${ss}${ms}`;
+}
+
+
+
+
+
+
+
+
+
+
+function saveInvoiceData(date, invoiceNumber, type, fund, sector, contact, address, cash, bank, bankName, description, userInfo) {
+    var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Data");
+
+    // If the sheet doesn't exist, create it and add the header row
+    if (!sheet) {
+        sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').insertSheet("Data");
+        sheet.appendRow([tid(),"Date", "Invoice Number", "Type", "Fund", "Sector", "Contact", "Address", "Cash", "Bank", "Bank Name", "Description", "userInfo"]); // Add header row for new fields
+    }
+
+    // Append the data as a new row
+    sheet.appendRow([tid(), date, invoiceNumber, type, fund, sector, contact, address, cash, bank, bankName, description, userInfo]);
+}
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Entry</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    /* Apply margin and padding to form-control inputs */
+    input.form-control {
+      margin: 5px;  /* Apply 5px margin around each input */
+      padding: 2px; /* Apply 2px padding inside each input */
+    }
+
+        .option-buttons {
+            width: 100%
+            align: center;
+            padding: 5px;
+        }
+        .option-button {
+            padding: 10px 15px;
+            border: 1px solid #007bff;
+            background-color: white;
+            color: #007bff;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .option-button.selected {
+            background-color: #007bff;
+            color: white;
+        }
+        .opt-button {
+            padding: 10px 15px;
+            border: 1px solid #28a745;
+            background-color: white;
+            color: #28a745;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .opt-button:hover {
+            background-color: #28a745;
+            color: white;
+        }
+        #notice {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            font-size: 16px;
+            display: none; /* Hidden by default */
+            border-radius: 5px;
+        }
+    </style>
+    <script>
+        var selectedType = null;
+        var selectedFund = null;
+        var selectedSector = null;
+
+        // Fetch Type from Google Apps Script
+        function fetchType() {
+            google.script.run.withSuccessHandler(displayType).getType();
+        }
+
+        // Fetch Fund based on selected Type
+        function fetchFundByType(type) {
+            google.script.run.withSuccessHandler(displayFund).getFundByType(type);
+        }
+
+        // Fetch Sector based on selected Type and Fund
+        function fetchSectorByType(type, fund) {
+            google.script.run.withSuccessHandler(displaySector).getSectorByType(type, fund);
+        }
+
+        // Display the Fund options
+        function displayFund(Fund) {
+            var container = document.getElementById("fundContainer");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!Fund || Fund.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No Fund available for the selected type.</p>";
+                return;
+            }
+
+            Fund.forEach(fund => {
+                var button = document.createElement("button");
+                button.textContent = fund;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    document.querySelectorAll("#fundContainer .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedFund = fund;  
+                    fetchSectorByType(selectedType, fund);  
+                    updateSelectedOptions();
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Display the Sector options
+        function displaySector(Sector) {
+            var container = document.getElementById("sectorContainer");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!Sector || Sector.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No Sector available for the selected type and fund.</p>";
+                return;
+            }
+
+            Sector.forEach(option => {
+                var button = document.createElement("button");
+                button.textContent = option;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    document.querySelectorAll("#sectorContainer .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedSector = option;  
+                    updateSelectedOptions();  
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Display the Type options
+        function displayType(Type) {
+            var container = document.getElementById("typeContainer");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!Type || Type.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No Type available.</p>";
+                return;
+            }
+
+            Type.forEach(type => {
+                var button = document.createElement("button");
+                button.textContent = type;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    document.querySelectorAll("#typeContainer .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedType = type;  
+                    fetchFundByType(type);  
+                    updateSelectedOptions();
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Update the hidden input with selected options (allowing Fund & Sector to be optional)
+        function updateSelectedOptions() {
+            let selectedText = `Type: ${selectedType || "N/A"}`;
+            
+            if (selectedFund) selectedText += `, Fund: ${selectedFund}`;
+            if (selectedSector) selectedText += `, Sector: ${selectedSector}`;
+
+            document.getElementById("selectedOption").value = selectedText;
+            console.log("Selected Options: ", document.getElementById("selectedOption").value);
+        }
+
+        // Reset or reload the form when Opt button is clicked
+        function resetForm() {
+            // Do not reset the selectedType (Type option) here.
+            selectedFund = null;
+            selectedSector = null;
+
+            document.getElementById("fundContainer").innerHTML = "";
+            document.getElementById("sectorContainer").innerHTML = "";
+
+            // Do not call fetchType() again; this keeps the "Type" intact.
+        }
+
+          function showNotice(message, isSuccess = true) {
+              const noticeElement = document.getElementById("notice");
+              if (!noticeElement) return;
+
+              noticeElement.innerText = message;
+              noticeElement.style.color = isSuccess ? "green" : "red";
+              noticeElement.style.display = "block";
+
+              setTimeout(() => {
+                  noticeElement.style.display = "none";
+              }, 3000); // Hide after 3 seconds
+          }
+
+
+
+
+        // Submit form data to Google Sheets
+        function submitForm() {
+            var date = document.getElementById("date").value;
+            var invoiceNumber = document.getElementById("invoiceNumber").value;
+            var selectedOption = document.getElementById("selectedOption").value;
+            var contact = document.getElementById("contact").value;
+            var address = document.getElementById("address").value;
+            var cash = document.getElementById("cash").value || 0; // Default to 0 if empty
+            var bank = document.getElementById("bank").value || 0; // Default to 0 if empty
+            var bankName = document.getElementById("bankName").value;
+            var description = document.getElementById("description").value;
+            var userInfo = document.getElementById("userInfo").textContent; // Get logged-in user info
+
+            // **Validation Check**
+            if (!invoiceNumber || !selectedType) {
+                showNotice("⚠️ তথ্যের ঘর খালী রয়েছে!", false);
+                return;
+            }
+
+            let fundValue = selectedFund || "";
+            let sectorValue = selectedSector || "";
+
+            google.script.run.saveInvoiceData(date, invoiceNumber, selectedType, fundValue, sectorValue, contact, address, cash, bank, bankName, description, userInfo);
+
+            var notice = document.getElementById("notice");
+            notice.textContent = "তথ্যগুলো সঠিকভাবে দাখিল হয়েছে!";
+            notice.style.display = "block";
+
+            // Clear the fields after submission
+            document.getElementById("invoiceNumber").value = "";
+            document.getElementById("contact").value = "";
+            document.getElementById("address").value = "";
+            document.getElementById("cash").checked = false;
+            document.getElementById("bank").checked = false;
+            document.getElementById("bankName").value = "";
+            document.getElementById("description").value = "";
+
+            resetForm();  // Reset Fund and Sector selections
+        }
+
+        // Load Type when the page is ready
+        document.addEventListener("DOMContentLoaded", function() {
+            // Only fetch the Type options once, when the page is first loaded
+            if (!selectedType) {
+                fetchType();  // Fetch Type options only if no Type has been selected
+            }
+        });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+         function checkCredentials() {
+        var user = document.getElementById("user").value;
+        var password = document.getElementById("password").value;
+
+        if (!user || !password) {
+            document.getElementById("loginMessage").textContent = "মোবাইল নাম্বার ও পাসওয়ার্ড চেক করুন!";
+            document.getElementById("loginMessage").style.color = "red";
+            return;
+        }
+
+        // Call Google Apps Script to validate credentials and fetch F2:F value
+        google.script.run.withSuccessHandler(function(response) {
+            if (response) {
+                document.getElementById("loginMessage").textContent = "লগিন সফল হয়েছে!";
+                document.getElementById("loginMessage").style.color = "green";
+                document.getElementById("userInfo").textContent = "" + response;
+
+                // Show logout button, hide login fields
+                document.getElementById("user").style.display = "none";
+                document.getElementById("password").style.display = "none";
+                document.querySelector("button[onclick='checkCredentials()']").style.display = "none";
+                document.getElementById("logoutBtn").style.display = "inline-block"; // Show logout button
+
+                // Show protected content
+                document.getElementById("content1").style.display = "block";
+            } else {
+                document.getElementById("loginMessage").textContent = "Invalid user or password.";
+                document.getElementById("loginMessage").style.color = "red";
+                document.getElementById("userInfo").textContent = ""; // Clear user info if login fails
+            }
+        }).validateUser(user, password);
+    }
+
+    function logoutUser() {
+        // Reset UI
+        document.getElementById("user").value = "";
+        document.getElementById("password").value = "";
+        document.getElementById("userInfo").textContent = "";
+        document.getElementById("loginMessage").textContent = "আপনাকে অবশ্যই লগিন করতে হবে!";
+        document.getElementById("loginMessage").style.color = "blue";
+
+        // Show login fields, hide logout button
+        document.getElementById("user").style.display = "inline-block";
+        document.getElementById("password").style.display = "inline-block";
+        document.querySelector("button[onclick='checkCredentials()']").style.display = "inline-block";
+        document.getElementById("logoutBtn").style.display = "none"; // Hide logout button
+
+        // Hide protected content
+        document.getElementById("content1").style.display = "none";
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+    </script>
+</head>
+<body>
+<div align="center">
+<h2>ডাটা এন্ট্রি</h2><br>
+<input type="number" id="user" placeholder="01XXXXXXXXX">
+<input type="password" id="password" placeholder="পাসওয়ার্ড দিন">
+<button onclick="checkCredentials()">লগিন</button>
+<button onclick="logoutUser()" id="logoutBtn" style="display:none;">লগআউট</button> <!-- Logout button (hidden initially) -->
+<div id="loginMessage"></div>
+<div id="userInfo"></div> <!-- To display F2:F value -->
+</div>
+
+
+
+
+<div align="center">
+<!-- Protected content -->
+<div id="content1" style="display:none;">
+    <div class="option-buttons" id="typeContainer">
+        <p>ধরণ লোড হচ্ছে...</p></div>
+    <div class="option-buttons" id="fundContainer">
+        <p>তহবিল লোড হচ্ছে...</p></div>
+    <div class="option-buttons" id="sectorContainer">
+        <p>খাতগুলো লোড হচ্ছে...</p></div>
+    <input type="hidden" id="selectedOption">
+    <button class="opt-button" onclick="resetForm()">পুনরায় বাছাই</button>
+
+
+
+
+
+
+
+  <div class="container mt-5">
+      <div class="row g-3"> <!-- Add the g-3 class for spacing between columns -->
+        <div class="col-4 mb-3">
+
+    <label for="date">তারিখ:</label><br>
+    <input type="date" id="date" style="width: 97%;">
+        </div>
+                <div class="col-4 mb-3">
+    <label for="invoiceNumber">ইনভয়েস নং:</label><br>
+    <input type="text" id="invoiceNumber" placeholder="সংখ্যায় লিখুন" style="width: 97%;">
+      </div><div class="col-4 mb-3">
+    <label for="contact">ব্যক্তির নাম:</label><br>
+    <input type="text" id="contact" placeholder="পূর্ণ নাম" style="width: 97%;">
+</div><div class="col-4 mb-3">
+
+      <label for="Address">ঠিকানা:</label><br>
+    <input type="text" id="address" placeholder="পূর্ণ ঠিকানা" style="width: 97%;">
+</div><div class="col-4 mb-3">
+    <label for="cash">নগদ টাকা:</label><br>
+    <input type="number" id="cash" placeholder="টাকা" style="width: 97%;">
+</div><div class="col-4 mb-3">
+
+    <label for="bank">ব্যাংক জমা:</label><br>
+    <input type="number" id="bank" placeholder="টাকা" style="width: 97%;">
+</div><div class="col-4 mb-3">
+
+    <label for="bankName">ব্যাংকের নাম:</label><br>
+    <input type="text" id="bankName" placeholder="ব্রাঞ্চ ও একাউন্ট" style="width: 97%;">
+</div><div class="col-4 mb-3">
+
+    <label for="description">বর্ণনা:</label><br>
+    <input id="description" placeholder="বিস্তারিত লিখুন" style="width: 97%;">
+</div></div>
+</div>
+
+<div align = "center">
+    <button class="opt-button" onclick="submitForm()">সাবমিট</button>
+    <div id="notice"></div>
+</div>
+</div></div>
+
+
+</body>
+</html>
