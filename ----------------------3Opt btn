@@ -297,3 +297,212 @@ function saveInvoice(data1) {
 </body>
 </html>
 
+--------------------------
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+        }
+        input, .option-buttons {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .option-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .option-button {
+            padding: 10px 15px;
+            border: 1px solid #007bff;
+            background-color: white;
+            color: #007bff;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .option-button.selected {
+            background-color: #007bff;
+            color: white;
+        }
+        .opt-button {
+            padding: 10px 15px;
+            border: 1px solid #28a745;
+            background-color: white;
+            color: #28a745;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .opt-button:hover {
+            background-color: #28a745;
+            color: white;
+        }
+    </style>
+    <script>
+        var selectedOpt1 = null;
+        var selectedOpt2 = null;
+        var selectedOpt3 = null;
+
+        // Fetch Opt1 from Google Apps Script
+        function fetchOpt1() {
+            google.script.run.withSuccessHandler(displayOpt1).getOpt1();
+        }
+
+        // Fetch Opt2 based on selected Type
+        function fetchOpt2ByType(type) {
+            google.script.run.withSuccessHandler(displayOpt2).getOpt2ByType(type);
+        }
+
+        // Fetch Opt3 based on selected Type and Term
+        function fetchOpt3ByType(type, term) {
+            google.script.run.withSuccessHandler(displayOpt3).getOpt3ByType(type, term);
+        }
+
+        // Display the Opt2 options
+        function displayOpt2(Opt2) {
+            var container = document.getElementById("opt2Container");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!Opt2 || Opt2.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No Opt2 available for the selected type.</p>";
+                return;
+            }
+
+            Opt2.forEach(term => {
+                var button = document.createElement("button");
+                button.textContent = term;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    // Allow only one term to be selected at a time
+                    document.querySelectorAll("#opt2Container .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedOpt2 = term;  // Store selected term
+                    fetchOpt3ByType(selectedOpt1, term);  // Fetch corresponding Opt3 for selected type and term
+                    updateSelectedOptions();
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Display the Opt3 options
+        function displayOpt3(Opt3) {
+            var container = document.getElementById("opt3Container");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!Opt3 || Opt3.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No Opt3 available for the selected type and term.</p>";
+                return;
+            }
+
+            Opt3.forEach(option => {
+                var button = document.createElement("button");
+                button.textContent = option;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    // Allow only one option to be selected at a time
+                    document.querySelectorAll("#opt3Container .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedOpt3 = option;  // Store selected option
+                    updateSelectedOptions();  // Update the selected options
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Display the Type options
+        function displayOpt1(Opt1) {
+            var container = document.getElementById("opt1Container");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!Opt1 || Opt1.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No Opt1 available.</p>";
+                return;
+            }
+
+            Opt1.forEach(type => {
+                var button = document.createElement("button");
+                button.textContent = type;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    // Allow only one type to be selected at a time
+                    document.querySelectorAll("#opt1Container .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedOpt1 = type;  // Store selected type
+                    fetchOpt2ByType(type);  // Fetch corresponding Opt2 for selected type
+                    updateSelectedOptions();
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Update the hidden input with selected options (including Opt3)
+        function updateSelectedOptions() {
+            if (selectedOpt1 && selectedOpt2 && selectedOpt3) {
+                document.getElementById("selectedOption").value = `Type: ${selectedOpt1}, Term: ${selectedOpt2}, Option3: ${selectedOpt3}`;
+                console.log("Selected Options: ", document.getElementById("selectedOption").value);
+            }
+        }
+
+        // Reset or reload the form when Opt button is clicked
+        function resetForm() {
+            selectedOpt1 = null;
+            selectedOpt2 = null;
+            selectedOpt3 = null;
+
+            // Clear the selected options from the view
+            document.getElementById("opt1Container").innerHTML = "";
+            document.getElementById("opt2Container").innerHTML = "";
+            document.getElementById("opt3Container").innerHTML = "";
+
+            // Reload Opt1
+            fetchOpt1();
+        }
+
+        // Load Opt1 when the page is ready
+        document.addEventListener("DOMContentLoaded", function() {
+            fetchOpt1();
+        });
+    </script>
+</head>
+<body>
+
+    <h2>Invoice Form</h2>
+
+    <label for="invoiceNumber">Invoice Number:</label>
+    <input type="text" id="invoiceNumber" placeholder="Enter Invoice Number">
+
+    <!-- Opt1 Section -->
+    <div class="option-buttons" id="opt1Container">
+        <p>Loading Opt1...</p>
+    </div>
+
+    <!-- Opt2 Section -->
+    <div class="option-buttons" id="opt2Container">
+        <p>Loading Opt2...</p>
+    </div>
+
+    <!-- Opt3 Section -->
+    <div class="option-buttons" id="opt3Container">
+        <p>Loading Opt3...</p>
+    </div>
+
+    <!-- Hidden input to store the selected options -->
+    <input type="hidden" id="selectedOption">
+
+    <!-- 'Opt' Button to Reset/Reload the form -->
+    <button class="opt-button" onclick="resetForm()">Reset Options</button>
+
+</body>
+</html>
