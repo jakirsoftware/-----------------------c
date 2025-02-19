@@ -121,24 +121,20 @@ function tid() {
 
 
 
-function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash, bank, bankName, description) {
+function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash, bank, bankName, description, userInfo) {
     var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Data");
 
     // If the sheet doesn't exist, create it and add the header row
     if (!sheet) {
         sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').insertSheet("Data");
-        sheet.appendRow(["Invoice Number", "Type", "Fund", "Sector", "Date", "Contact", "Cash", "Bank", "Bank Name", "Description"]); // Add header row for new fields
+        sheet.appendRow(["Invoice Number", "Type", "Fund", "Sector", "Date", "Contact", "Cash", "Bank", "Bank Name", "Description", "userInfo"]); // Add header row for new fields
     }
 
     // Append the data as a new row
-    sheet.appendRow([invoiceNumber, type, fund, sector, date, contact, cash, bank, bankName, description]);
+    sheet.appendRow([invoiceNumber, type, fund, sector, date, contact, cash, bank, bankName, description, userInfo]);
 }
 
-
-
-
-
-
+--------------------------------------
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -327,6 +323,7 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
             var bank = document.getElementById("bank").checked;
             var bankName = document.getElementById("bankName").value;
             var description = document.getElementById("description").value;
+            var userInfo = document.getElementById("userInfo").textContent; // Get logged-in user info
 
             if (!invoiceNumber || !selectedType) {
                 alert("Please enter an invoice number and select at least one option from Type.");
@@ -336,7 +333,7 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
             let fundValue = selectedFund || "";
             let sectorValue = selectedSector || "";
 
-            google.script.run.saveInvoiceData(invoiceNumber, selectedType, fundValue, sectorValue, date, contact, cash, bank, bankName, description);
+            google.script.run.saveInvoiceData(invoiceNumber, selectedType, fundValue, sectorValue, date, contact, cash, bank, bankName, description, userInfo);
 
             var notice = document.getElementById("notice");
             notice.textContent = "Invoice data submitted successfully!";
@@ -392,7 +389,7 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
             if (response) {
                 document.getElementById("loginMessage").textContent = "Login successful!";
                 document.getElementById("loginMessage").style.color = "green";
-                document.getElementById("userInfo").textContent = "User Info: " + response;
+                document.getElementById("userInfo").textContent = "" + response;
 
                 // Show logout button, hide login fields
                 document.getElementById("user").style.display = "none";
@@ -427,7 +424,7 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
 
         // Hide protected content
         document.getElementById("content1").style.display = "none";
-        document.getElementById("content2").style.display = "none";
+
     }
 
 
@@ -455,16 +452,13 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
 <div id="loginMessage"></div>
 <div id="userInfo"></div> <!-- To display F2:F value -->
 
+
+
+
 <!-- Protected content -->
 <div id="content1" style="display:none;">
-    <h2>Welcome to the Dashboard</h2>
-    <p>This is your first protected content.</p>
-</div>
 
-<div id="content2" style="display:none;">
-    <h2>Additional User Section</h2>
-    <p>Some other exclusive content here.</p>
-</div>
+
 
 
 
@@ -513,9 +507,10 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
 
     <div id="notice"></div>
 
+
+</div>
+
+
+
 </body>
 </html>
-
-
-
-
