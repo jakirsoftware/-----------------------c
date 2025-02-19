@@ -1,0 +1,175 @@
+// Google Apps Script Web App URL
+// https://script.google.com/macros/s/AKfycbxJf9YW8PG5aa4joP-HP8fm4HxG6w9FVUTjs0wLbxfNinBw4HyAoMwbXgDj_WD0F39aNQ/exec
+
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate().setTitle("Invoice")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+
+// Fetch types from the 'types' sheet 
+function getTypes() { 
+  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Control");
+  var data = sheet.getRange("G2:G").getValues().flat(); 
+  return [...new Set(data.filter(String))]; // Remove duplicates & empty values
+}
+
+// Fetch terms based on the selected type from the 'Control' sheet
+function getTermsByType(type) {
+  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Control");
+  var types = sheet.getRange("G2:G").getValues().flat();
+  var terms = sheet.getRange("H2:H").getValues().flat();
+  
+  var filteredTerms = [];
+  
+  // Loop through types and terms and match the selected type
+  for (var i = 0; i < types.length; i++) {
+    if (types[i] === type && terms[i]) {
+      filteredTerms.push(terms[i]);
+    }
+  }
+
+  return [...new Set(filteredTerms.filter(String))]; // Remove duplicates & empty values
+}
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+        }
+        input, .option-buttons {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .option-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .option-button {
+            padding: 10px 15px;
+            border: 1px solid #007bff;
+            background-color: white;
+            color: #007bff;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .option-button.selected {
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+    <script>
+        var selectedType = null;
+        var selectedTerm = null;
+
+        // Fetch Types from Google Apps Script
+        function fetchTypes() {
+            google.script.run.withSuccessHandler(displayTypes).getTypes();
+        }
+
+        // Fetch Terms from Google Apps Script based on Type
+        function fetchTermsByType(type) {
+            google.script.run.withSuccessHandler(displayTerms).getTermsByType(type);
+        }
+
+        // Display the Terms options
+        function displayTerms(terms) {
+            var container = document.getElementById("termsContainer");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!terms || terms.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No terms available for the selected type.</p>";
+                return;
+            }
+
+            terms.forEach(term => {
+                var button = document.createElement("button");
+                button.textContent = term;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    // Allow only one term to be selected at a time
+                    document.querySelectorAll("#termsContainer .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedTerm = term;  // Store selected term
+                    updateSelectedOptions();
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Display the Type options
+        function displayTypes(types) {
+            var container = document.getElementById("typesContainer");
+            container.innerHTML = ""; // Clear previous buttons
+
+            if (!types || types.length === 0) {
+                container.innerHTML = "<p style='color:red;'>No types available.</p>";
+                return;
+            }
+
+            types.forEach(type => {
+                var button = document.createElement("button");
+                button.textContent = type;
+                button.classList.add("option-button");
+                button.onclick = function () {
+                    // Allow only one type to be selected at a time
+                    document.querySelectorAll("#typesContainer .selected").forEach(btn => btn.classList.remove("selected"));
+                    button.classList.add("selected");
+
+                    selectedType = type;  // Store selected type
+                    fetchTermsByType(type);  // Fetch corresponding terms for selected type
+                    updateSelectedOptions();
+                };
+                container.appendChild(button);
+            });
+        }
+
+        // Update the hidden input with selected options
+        function updateSelectedOptions() {
+            if (selectedType && selectedTerm) {
+                document.getElementById("selectedOption").value = `Type: ${selectedType}, Term: ${selectedTerm}`;
+                console.log("Selected Options: ", document.getElementById("selectedOption").value);
+            }
+        }
+
+        // Load Types when the page is ready
+        document.addEventListener("DOMContentLoaded", function() {
+            fetchTypes();
+        });
+    </script>
+</head>
+<body>
+
+    <h2>Invoice Form</h2>
+
+    <label for="invoiceNumber">Invoice Number:</label>
+    <input type="text" id="invoiceNumber" placeholder="Enter Invoice Number">
+
+    <!-- Types Section -->
+    <div class="option-buttons" id="typesContainer">
+        <p>Loading types...</p>
+    </div>
+
+    <!-- Terms Section -->
+    <div class="option-buttons" id="termsContainer">
+        <p>Loading terms...</p>
+    </div>
+
+    <!-- Hidden input to store the selected options -->
+    <input type="hidden" id="selectedOption">
+
+</body>
+</html>
