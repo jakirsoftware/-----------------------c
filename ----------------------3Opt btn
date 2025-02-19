@@ -121,20 +121,19 @@ function tid() {
 
 
 
-function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash, bank, bankName, description, userInfo) {
+function saveInvoiceData(date, invoiceNumber, type, fund, sector, contact, cash, bank, bankName, description, userInfo) {
     var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Data");
 
     // If the sheet doesn't exist, create it and add the header row
     if (!sheet) {
         sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').insertSheet("Data");
-        sheet.appendRow(["Invoice Number", "Type", "Fund", "Sector", "Date", "Contact", "Cash", "Bank", "Bank Name", "Description", "userInfo"]); // Add header row for new fields
+        sheet.appendRow([tid(),"Date", "Invoice Number", "Type", "Fund", "Sector", "Contact", "Cash", "Bank", "Bank Name", "Description", "userInfo"]); // Add header row for new fields
     }
 
     // Append the data as a new row
-    sheet.appendRow([invoiceNumber, type, fund, sector, date, contact, cash, bank, bankName, description, userInfo]);
+    sheet.appendRow([tid(), date, invoiceNumber, type, fund, sector, contact, cash, bank, bankName, description, userInfo]);
 }
 
---------------------------------------
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -315,12 +314,12 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
 
         // Submit form data to Google Sheets
         function submitForm() {
+            var date = document.getElementById("date").value;
             var invoiceNumber = document.getElementById("invoiceNumber").value;
             var selectedOption = document.getElementById("selectedOption").value;
-            var date = document.getElementById("date").value;
             var contact = document.getElementById("contact").value;
-            var cash = document.getElementById("cash").checked;
-            var bank = document.getElementById("bank").checked;
+            var cash = document.getElementById("cash").value || 0; // Default to 0 if empty
+            var bank = document.getElementById("bank").value || 0; // Default to 0 if empty
             var bankName = document.getElementById("bankName").value;
             var description = document.getElementById("description").value;
             var userInfo = document.getElementById("userInfo").textContent; // Get logged-in user info
@@ -333,15 +332,15 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
             let fundValue = selectedFund || "";
             let sectorValue = selectedSector || "";
 
-            google.script.run.saveInvoiceData(invoiceNumber, selectedType, fundValue, sectorValue, date, contact, cash, bank, bankName, description, userInfo);
+            google.script.run.saveInvoiceData(date, invoiceNumber, selectedType, fundValue, sectorValue, contact, cash, bank, bankName, description, userInfo);
 
             var notice = document.getElementById("notice");
             notice.textContent = "Invoice data submitted successfully!";
             notice.style.display = "block";
 
             // Clear the fields after submission
-            document.getElementById("invoiceNumber").value = "";
             document.getElementById("date").value = "";
+            document.getElementById("invoiceNumber").value = "";
             document.getElementById("contact").value = "";
             document.getElementById("cash").checked = false;
             document.getElementById("bank").checked = false;
@@ -399,7 +398,6 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
 
                 // Show protected content
                 document.getElementById("content1").style.display = "block";
-                document.getElementById("content2").style.display = "block";
             } else {
                 document.getElementById("loginMessage").textContent = "Invalid user or password.";
                 document.getElementById("loginMessage").style.color = "red";
@@ -466,21 +464,23 @@ function saveInvoiceData(invoiceNumber, type, fund, sector, date, contact, cash,
 
 
 
+    <label for="date">Date:</label>
+    <input type="date" id="date">
 
     <label for="invoiceNumber">Invoice Number:</label>
     <input type="text" id="invoiceNumber" placeholder="Enter Invoice Number">
 
-    <label for="date">Date:</label>
-    <input type="date" id="date">
 
     <label for="contact">Contact:</label>
     <input type="text" id="contact" placeholder="Enter Contact Info">
 
-    <label for="cash">Cash:</label>
-    <input type="checkbox" id="cash"> Cash Payment
+    <label for="cash">Cash Amount:</label>
+    <input type="number" id="cash" placeholder="Enter cash amount">
 
-    <label for="bank">Bank:</label>
-    <input type="checkbox" id="bank"> Bank Payment
+
+    <label for="bank">Bank Amount:</label>
+    <input type="number" id="bank" placeholder="Enter bank amount">
+
 
     <label for="bankName">Bank Name:</label>
     <input type="text" id="bankName" placeholder="Enter Bank Name (if applicable)">
