@@ -1,0 +1,197 @@
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index');
+}
+
+function getData() {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control"); // Updated sheet name
+  var values = sheet.getRange("A2:A").getValues(); // Get values from A2:A range
+  var data = values.map(function(row) {
+    return row[0]; // Return the values in column A starting from row 2
+  }).filter(function(item) { return item !== ""; }); // Filter out empty values
+  return data;
+}
+
+function addData(value) {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control"); // Updated sheet name
+  var values = sheet.getRange("A2:A").getValues(); // Get all existing values from A2:A range
+  var existingValues = values.map(function(row) {
+    return row[0]; // Extract the value from the first column (A)
+  });
+
+  if (existingValues.indexOf(value) !== -1) {
+    return "exists"; // Return 'exists' if value already exists
+  }
+
+  sheet.appendRow([value]); // Add value to the next available row in column A
+  return "success";
+}
+
+function deleteData(value) {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control"); // Updated sheet name
+  var range = sheet.getRange("A2:A"); // Get all values from A2:A range
+  var values = range.getValues();
+
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][0] === value) {
+      sheet.deleteRow(i + 2); // Delete the row corresponding to the value (i + 2 because range starts at row 2)
+      break;
+    }
+  }
+}
+
+function updateData(oldValue, newValue) {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control"); // Updated sheet name
+  var range = sheet.getRange("A2:A"); // Get all values from A2:A range
+  var values = range.getValues();
+
+  // Check if new value already exists
+  var existingValues = values.map(function(row) {
+    return row[0]; // Extract the value from the first column (A)
+  });
+
+  if (existingValues.indexOf(newValue) !== -1) {
+    return "exists"; // Return 'exists' if new value already exists
+  }
+
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][0] === oldValue) {
+      sheet.getRange(i + 2, 1).setValue(newValue); // Update the value at the correct row (i + 2 for row index)
+      break;
+    }
+  }
+  return "success";
+}
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    #notification {
+      display: none;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 5px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .success { background-color: #d4edda; color: #155724; }
+    .error { background-color: #f8d7da; color: #721c24; }
+  </style>
+
+  <script>
+    function showNotification(message, type) {
+      var notification = document.getElementById("notification");
+      notification.textContent = message;
+      notification.className = type;
+      notification.style.display = "block";
+      
+      setTimeout(function() {
+        notification.style.display = "none"; // Hide after 3 seconds
+      }, 3000);
+    }
+
+    function loadDropdown() {
+      google.script.run.withSuccessHandler(function(values) {
+        var dropdown = document.getElementById("deleteDropdown");
+        dropdown.innerHTML = ""; // Clear existing options
+
+        if (values.length === 0) {
+          var option = document.createElement("option");
+          option.textContent = "No values available";
+          option.disabled = true;
+          dropdown.appendChild(option);
+          return;
+        }
+
+        values.forEach(function(value) {
+          var option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          dropdown.appendChild(option);
+        });
+      }).getData();
+    }
+
+    function addData() {
+      var value = document.getElementById("inputValue").value.trim();
+      if (value === "") {
+        showNotification("Please enter a value!", "error");
+        return;
+      }
+
+      google.script.run.withSuccessHandler(function(response) {
+        if (response === "exists") {
+          showNotification("This value already exists!", "error");
+        } else {
+          showNotification("Value added successfully!", "success");
+          loadDropdown(); // Refresh dropdown
+        }
+        document.getElementById("inputValue").value = ""; // Clear input
+      }).addData(value);
+    }
+
+    function deleteData() {
+      var dropdown = document.getElementById("deleteDropdown");
+      var value = dropdown.value;
+      if (!value) {
+        showNotification("Please select a value to delete!", "error");
+        return;
+      }
+
+      google.script.run.withSuccessHandler(function() {
+        showNotification("Value deleted successfully!", "success");
+        loadDropdown(); // Refresh dropdown after deletion
+      }).deleteData(value);
+    }
+
+    function updateData() {
+      var dropdown = document.getElementById("deleteDropdown");
+      var value = dropdown.value;
+      var newValue = document.getElementById("updateValue").value.trim();
+      if (!value) {
+        showNotification("Please select a value to update!", "error");
+        return;
+      }
+      if (!newValue) {
+        showNotification("Please enter a new value!", "error");
+        return;
+      }
+
+      google.script.run.withSuccessHandler(function(response) {
+        if (response === "exists") {
+          showNotification("The new value already exists!", "error");
+        } else {
+          showNotification("Value updated successfully!", "success");
+          loadDropdown(); // Refresh dropdown after update
+        }
+        document.getElementById("updateValue").value = ""; // Clear input
+      }).updateData(value, newValue);
+    }
+
+    window.onload = loadDropdown; // Load dropdown on page load
+  </script>
+</head>
+<body>
+  <h2>Control Sheet Manager</h2>
+
+  <label for="inputValue">Enter Value:</label>
+  <input type="text" id="inputValue">
+  <button onclick="addData()">Add</button>
+
+  <br><br>
+
+  <label for="deleteDropdown">Delete Value:</label>
+  <select id="deleteDropdown"></select>
+  <button onclick="deleteData()">Delete</button>
+
+  <br><br>
+
+  <label for="updateValue">Update Value:</label>
+  <input type="text" id="updateValue">
+  <button onclick="updateData()">Update</button>
+
+  <div id="notification"></div> <!-- Inner notification box -->
+</body>
+</html>
