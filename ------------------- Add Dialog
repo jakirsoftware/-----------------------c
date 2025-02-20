@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Button Click Dialog</title>
+</head>
+<body>
+
+    <!-- Button to trigger dialog with add symbol -->
+    <button id="myButton">➕</button>
+
+    <!-- Dialog element -->
+    <dialog id="myDialog">
+        <p id="dialogContent"></p>
+        <button id="closeDialog">Close</button>
+    </dialog>
+
+    <script>
+        // Get elements
+        const button = document.getElementById('myButton');
+        const dialog = document.getElementById('myDialog');
+        const dialogContent = document.getElementById('dialogContent');
+        const closeButton = document.getElementById('closeDialog');
+
+        // Button click event to open dialog and show button text inside dialog
+        button.addEventListener('click', function() {
+            dialogContent.innerHTML = 'You clicked: ' + button.innerHTML;
+            dialog.showModal();  // Show the dialog
+        });
+
+        // Close button to close the dialog
+        closeButton.addEventListener('click', function() {
+            dialog.close();  // Close the dialog
+        });
+    </script>
+
+</body>
+</html>
