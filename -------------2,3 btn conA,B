@@ -87,3 +87,330 @@
 
 </body>
 </html>
+
+function saveData(book, page, date, invNumber, type, fund, sector, contact, address, cash, bank, bankName, description, userInfo) {
+    var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Data");
+    // Append the data as a new row
+    sheet.appendRow([tid(), book, page, date, invNumber, type, fund, sector, contact, address, cash, bank, bankName, description, userInfo]);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Entry</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    /* Apply margin and padding to form-control inputs */
+    input.form-control {
+      margin: 5px;  /* Apply 5px margin around each input */
+      padding: 2px; /* Apply 2px padding inside each input */
+    }
+
+        #notice {
+            margin-top: 10px;
+            padding: 5px;
+            background-color: #28a745;
+            color: white;
+            font-size: 14px;
+            display: none; /* Hidden by default */
+            border-radius: 5px;
+        }
+    </style>
+    <script>
+
+
+ window.onload = function() {
+    // Set the current date in the date input field
+    document.getElementById("date").value = new Date().toISOString().split('T')[0];
+
+    // Fetch and populate the "Types" dropdown
+    google.script.run.withSuccessHandler(function(types) {
+        const typeSelect = document.getElementById("type");
+        types.forEach(type => {
+            let option = document.createElement("option");
+            option.value = type;
+            option.textContent = type;
+            typeSelect.appendChild(option);
+        });
+    }).getTypes();
+
+    // Event listeners to update the hidden input with the selected value
+    document.getElementById("type").addEventListener("change", function() {
+    document.getElementById("selectedOption").value = this.value;
+    });
+
+
+    // Fetch and populate the "Funds" dropdown
+    google.script.run.withSuccessHandler(function(funds) {
+        const fundSelect = document.getElementById("fund");
+        funds.forEach(fund => {
+            let option = document.createElement("option");
+            option.value = fund;
+            option.textContent = fund;
+            fundSelect.appendChild(option);
+        });
+    }).getFunds();
+
+    document.getElementById("fund").addEventListener("change", function() {
+    document.getElementById("selectedOption").value = this.value;
+    });
+
+
+
+    // Fetch and populate the "Sectors" dropdown
+    google.script.run.withSuccessHandler(function(sectors) {
+        const sectorSelect = document.getElementById("sector");
+        sectors.forEach(sector => {
+            let option = document.createElement("option");
+            option.value = sector;
+            option.textContent = sector;
+            sectorSelect.appendChild(option);
+        });
+    }).getSectors();
+
+    document.getElementById("sector").addEventListener("change", function() {
+    document.getElementById("selectedOption").value = this.value;
+    });
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          function showNotice(message, isSuccess = true) {
+              const noticeElement = document.getElementById("notice");
+              if (!noticeElement) return;
+
+              noticeElement.innerText = message;
+              noticeElement.style.color = isSuccess ? "green" : "red";
+              noticeElement.style.display = "block";
+
+              setTimeout(() => {
+                  noticeElement.style.display = "none";
+              }, 3000); // Hide after 3 seconds
+          }
+
+
+
+
+        function submitForm() {
+          var book = document.getElementById("book").value;
+          var page = document.getElementById("page").value;
+          var date = document.getElementById("date").value;
+          var invNumber = document.getElementById("invNumber").value;
+          var type = document.getElementById("type").value;
+          var fund = document.getElementById("fund").value;
+          var sector = document.getElementById("sector").value;
+          var contact = document.getElementById("contact").value;
+          var address = document.getElementById("address").value;
+          var cash = document.getElementById("cash").value;
+          var bank = document.getElementById("bank").value;
+          var bankName = document.getElementById("bankName").value;
+          var description = document.getElementById("description").value;
+          var userInfo = document.getElementById("userInfo").textContent; 
+
+          // **Validation Check**
+          if (!book || !date || !invNumber || !type) {
+                showNotice("⚠️ তথ্যের ঘর খালী রয়েছে!", false);
+                return;
+            }
+
+     
+
+            google.script.run.saveData(book, page, date, invNumber, type, fund, sector, contact, address, cash, bank, bankName, description, userInfo);
+
+            var notice = document.getElementById("notice");
+            notice.textContent = "তথ্যগুলো সঠিকভাবে দাখিল হয়েছে!";
+            notice.style.display = "block";
+
+          // Clear form
+          document.getElementById("page").value = "";
+          document.getElementById("invNumber").value = "";
+          document.getElementById("fund").selectedIndex = 0;
+          document.getElementById("sector").selectedIndex = 0;
+          document.getElementById("contact").value = "";
+          document.getElementById("address").value = "";
+          document.getElementById("cash").value = "";
+          document.getElementById("bank").value = "";
+          document.getElementById("bankName").value = "";
+          document.getElementById("description").value = "";
+
+          // Reset Dropdowns
+          resetForm();
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+         function checkCredentials() {
+        var user = document.getElementById("user").value;
+        var password = document.getElementById("password").value;
+
+        if (!user || !password) {
+            document.getElementById("loginMessage").textContent = "মোবাইল নাম্বার ও পাসওয়ার্ড চেক করুন!";
+            document.getElementById("loginMessage").style.color = "red";
+            return;
+        }
+
+        // Call Google Apps Script to validate credentials and fetch F2:F value
+        google.script.run.withSuccessHandler(function(response) {
+            if (response) {
+                document.getElementById("loginMessage").textContent = "✔️";
+                document.getElementById("loginMessage").style.color = "green";
+                document.getElementById("userInfo").textContent = "" + response;
+
+                // Show logout button, hide login fields
+                document.getElementById("user").style.display = "none";
+                document.getElementById("password").style.display = "none";
+                document.querySelector("button[onclick='checkCredentials()']").style.display = "none";
+                document.getElementById("logoutBtn").style.display = "inline-block"; // Show logout button
+
+                // Show protected content
+                document.getElementById("content1").style.display = "block";
+            } else {
+                document.getElementById("loginMessage").textContent = "Invalid user or password.";
+                document.getElementById("loginMessage").style.color = "red";
+                document.getElementById("userInfo").textContent = ""; // Clear user info if login fails
+            }
+        }).validateUser(user, password);
+    }
+
+    function logoutUser() {
+        // Reset UI
+        document.getElementById("user").value = "";
+        document.getElementById("password").value = "";
+        document.getElementById("userInfo").textContent = "";
+        document.getElementById("loginMessage").textContent = "🔒";
+        document.getElementById("loginMessage").style.color = "blue";
+
+        // Show login fields, hide logout button
+        document.getElementById("user").style.display = "inline-block";
+        document.getElementById("password").style.display = "inline-block";
+        document.querySelector("button[onclick='checkCredentials()']").style.display = "inline-block";
+        document.getElementById("logoutBtn").style.display = "none"; // Hide logout button
+
+        // Hide protected content
+        document.getElementById("content1").style.display = "none";
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+    </script>
+</head>
+<body>
+<div align="center">
+<br>
+<h2>ডাটা এন্ট্রি</h2>
+<div id="notice"></div>
+<br>
+<input type="number" id="user" placeholder="01XXXXXXXXX" style="width: 35%;">
+<input type="password" id="password" placeholder="পাসওয়ার্ড দিন" style="width: 35%;">
+<button onclick="checkCredentials()">লগিন</button>
+<button onclick="logoutUser()" id="logoutBtn" style="display:none;">লগআউট</button> <!-- Logout button (hidden initially) -->
+<div id="loginMessage"></div>
+<div id="userInfo"></div> <!-- To display F2:F value -->
+</div>
+
+
+
+<!-- Protected Content -->
+<div align="center">
+    <div id="content1" style="display:none;">
+        <label for="date">তারিখঃ</label>
+        <input type="date" id="date" style="width: 10%;">
+        <label> বই নংঃ</label>
+        <input type="text" id="book" placeholder="বই" style="width: 5%;">
+        <label> পৃষ্ঠা নংঃ</label>
+        <input type="number" id="page" placeholder="পৃষ্ঠা" style="width: 10%;">
+        <label for="invNumber"> ইনভয়েস নং:</label>
+        <input type="number" id="invNumber" placeholder="সংখ্যায় লিখুন" style="width: 10%;">
+        <br><br>
+
+        <!-- Dropdowns -->
+        <select id="type">
+            <option value="">ধরণঃ</option>
+        </select>
+        <select id="fund">
+            <option value="">তহবিলঃ</option>
+        </select>
+        <select id="sector">
+            <option value="">খাতঃ</option>
+        </select>
+
+        <!-- Additional Inputs -->
+        <div class="container mt-5">
+            <div class="row g-3">
+                <div class="col-4 mb-3">
+                    <label for="contact">ব্যক্তির নাম:</label>
+                    <input type="text" id="contact" placeholder="পূর্ণ নাম" style="width: 97%;">
+                </div>
+                <div class="col-4 mb-3">
+                    <label for="address">ঠিকানা:</label>
+                    <input type="text" id="address" placeholder="পূর্ণ ঠিকানা" style="width: 97%;">
+                </div>
+
+              <div class="col-4 mb-3">
+                  <label for="cash">নগদ টাকা:</label><br>
+                  <input type="number" id="cash" placeholder="টাকা" style="width: 97%;">
+              </div><div class="col-4 mb-3">
+
+                  <label for="bank">ব্যাংক জমা:</label><br>
+                  <input type="number" id="bank" placeholder="টাকা" style="width: 97%;">
+              </div><div class="col-4 mb-3">
+
+                  <label for="bankName">ব্যাংকের নাম:</label><br>
+                  <input type="text" id="bankName" placeholder="ব্রাঞ্চ ও একাউন্ট" style="width: 97%;">
+
+              </div><div class="col-4 mb-3">
+                  <label for="description">বর্ণনা:</label><br>
+                  <input id="description" placeholder="বিস্তারিত লিখুন" style="width: 97%;">
+              </div>
+
+            <button onclick="submitForm()" style="width: 99%;">সাবমিট</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+</body>
+</html>
+
