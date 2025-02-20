@@ -1,0 +1,140 @@
+function doGet() {
+  return HtmlService.createTemplateFromFile('index').evaluate();
+}
+
+// Function to get data from "Control"!A2:A for dropdown
+function getData() {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control");
+  var range = sheet.getRange("A2:A" + sheet.getLastRow());
+  var values = range.getValues().flat().filter(String); // Remove empty values
+  return values;
+}
+
+// Function to add unique data
+function addData(value) {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control");
+  var range = sheet.getRange("A2:A" + sheet.getLastRow());
+  var values = range.getValues().flat();
+
+  if (values.includes(value)) {
+    return "exists"; // Prevent duplicate entry
+  }
+
+  sheet.getRange(sheet.getLastRow() + 1, 1).setValue(value);
+  return "added";
+}
+
+// Function to delete selected value
+function deleteData(value) {
+  var sheet = SpreadsheetApp.openById('1Vtj4OCGhQ0iCvyyYnlY-fv78u398IM_bXGwgn8UVXfA1').getSheetByName("Control");
+  var range = sheet.getRange("A2:A" + sheet.getLastRow());
+  var values = range.getValues();
+  
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][0] == value) {
+      sheet.deleteRow(i + 2); // +2 to adjust for header row
+      break; // Delete only the first match
+    }
+  }
+}
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    #notification {
+      display: none;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 5px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .success { background-color: #d4edda; color: #155724; }
+    .error { background-color: #f8d7da; color: #721c24; }
+  </style>
+
+  <script>
+    function showNotification(message, type) {
+      var notification = document.getElementById("notification");
+      notification.textContent = message;
+      notification.className = type;
+      notification.style.display = "block";
+      
+      setTimeout(function() {
+        notification.style.display = "none"; // Hide after 3 seconds
+      }, 3000);
+    }
+
+    function loadDropdown() {
+      google.script.run.withSuccessHandler(function(values) {
+        var dropdown = document.getElementById("deleteDropdown");
+        dropdown.innerHTML = ""; // Clear existing options
+
+        values.forEach(function(value) {
+          var option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          dropdown.appendChild(option);
+        });
+      }).getData();
+    }
+
+    function addData() {
+      var value = document.getElementById("inputValue").value.trim();
+      if (value === "") {
+        showNotification("Please enter a value!", "error");
+        return;
+      }
+
+      google.script.run.withSuccessHandler(function(response) {
+        if (response === "exists") {
+          showNotification("This value already exists!", "error");
+        } else {
+          showNotification("Value added successfully!", "success");
+          loadDropdown(); // Refresh dropdown
+        }
+        document.getElementById("inputValue").value = ""; // Clear input
+      }).addData(value);
+    }
+
+    function deleteData() {
+      var dropdown = document.getElementById("deleteDropdown");
+      var value = dropdown.value;
+      if (!value) {
+        showNotification("Please select a value to delete!", "error");
+        return;
+      }
+
+      google.script.run.withSuccessHandler(function() {
+        showNotification("Value deleted successfully!", "success");
+        loadDropdown(); // Refresh dropdown after deletion
+      }).deleteData(value);
+    }
+
+    window.onload = loadDropdown; // Load dropdown on page load
+  </script>
+</head>
+<body>
+  <h2>Control Sheet Manager</h2>
+
+  <label for="inputValue">Enter Value:</label>
+  <input type="text" id="inputValue">
+  <button onclick="addData()">Add</button>
+
+  <br><br>
+
+  <label for="deleteDropdown">Delete Value:</label>
+  <select id="deleteDropdown"></select>
+  <button onclick="deleteData()">Delete</button>
+
+  <div id="notification"></div> <!-- Inner notification box -->
+</body>
+</html>
