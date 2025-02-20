@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toggle Content</title>
+    <style>
+        #conB {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="conA">
+        <h2>Content 1</h2>
+        <p>This is the first content section.</p>
+        <button onclick="toggleContent()">Click to Show Content 2</button>
+    </div>
+
+    <div id="conB">
+        <h2>Content 2</h2>
+        <p>This is the second content section.</p>
+        <button onclick="toggleContent()">Back to Content 1</button>
+    </div>
+
+    <script>
+        function toggleContent() {
+            var conA = document.getElementById("conA");
+            var conB = document.getElementById("conB");
+
+            if (conA.style.display === "none") {
+                conA.style.display = "block";
+                conB.style.display = "none";
+            } else {
+                conA.style.display = "none";
+                conB.style.display = "block";
+            }
+        }
+    </script>
+
+</body>
+</html>
