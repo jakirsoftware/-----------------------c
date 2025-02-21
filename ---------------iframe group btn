@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iframe Fullscreen with Split Button</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        .buttons {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropbtn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+        }
+        .dropbtn:hover {
+            background-color: #0056b3;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+        .dropdown-content a {
+            color: black;
+            padding: 10px 15px;
+            display: block;
+            text-decoration: none;
+        }
+        .dropdown-content a:hover {
+            background-color: #ddd;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        .split-button {
+            display: flex;
+            align-items: center;
+        }
+        .split-button .main-btn {
+            border-right: 1px solid white;
+            padding-right: 15px;
+        }
+        .split-button .dropbtn {
+            padding: 10px 15px;
+        }
+        iframe {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="buttons">
+        <!-- Split Button Dropdown -->
+        <div class="dropdown">
+            <div class="split-button">
+                <button class="dropbtn main-btn">Menu</button>
+                <button class="dropbtn">▼</button>
+            </div>
+            <div class="dropdown-content">
+                <a href="#" onclick="changeIframe('https://www.example1.com')">Button 1</a>
+                <a href="#" onclick="changeIframe('https://www.example2.com')">Button 2</a>
+                <a href="#" onclick="changeIframe('https://www.example3.com')">Button 3</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Iframe -->
+    <iframe id="iframeView" src="https://www.google.com"></iframe>
+
+    <script>
+        function changeIframe(url) {
+            document.getElementById('iframeView').src = url;
+        }
+    </script>
+
+</body>
+</html>
