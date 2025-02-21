@@ -1,0 +1,130 @@
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('Sales Invoice');
+}
+
+function saveInvoice(data) {
+  var sheetId = '1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng'; // Replace with your Google Sheet ID
+  var sheet = SpreadsheetApp.openById(sheetId).getSheetByName("Invoice");
+
+  if (!sheet) {
+    sheet = SpreadsheetApp.openById(sheetId).insertSheet("Invoice");
+    sheet.appendRow(["Date", "Invoice Number", "Customer Name", "Product", "Price", "Quantity", "Total"]);
+  }
+
+  var date = new Date();
+  
+  data.invoice.forEach(item => {
+    sheet.appendRow([
+      date.toLocaleDateString(),
+      data.invoiceNumber,
+      data.customer,
+      item.product,
+      item.price,
+      item.quantity,
+      item.total
+    ]);
+  });
+
+  return "Invoice saved successfully!";
+}
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <script>
+    function addItem() {
+      let table = document.getElementById("invoiceTable").getElementsByTagName('tbody')[0];
+      let newRow = table.insertRow();
+      
+      newRow.innerHTML = `
+        <td><input type="text" class="product" placeholder="Product Name"></td>
+        <td><input type="number" class="price" value="0" onchange="updateTotal()"></td>
+        <td><input type="number" class="quantity" value="1" onchange="updateTotal()"></td>
+        <td class="total">0.00</td>
+        <td><button onclick="removeItem(this)">Delete</button></td>
+      `;
+    }
+
+    function removeItem(button) {
+      let row = button.parentNode.parentNode;
+      row.parentNode.removeChild(row);
+      updateTotal();
+    }
+
+    function updateTotal() {
+      let total = 0;
+      document.querySelectorAll("#invoiceTable tbody tr").forEach(row => {
+        let price = parseFloat(row.querySelector(".price").value) || 0;
+        let quantity = parseFloat(row.querySelector(".quantity").value) || 0;
+        let amount = price * quantity;
+        row.querySelector(".total").innerText = amount.toFixed(2);
+        total += amount;
+      });
+      document.getElementById("grandTotal").innerText = total.toFixed(2);
+    }
+
+    function saveInvoice() {
+      let invoiceNumber = document.getElementById("invoiceNumber").value;
+      let customer = document.getElementById("customer").value;
+      let items = [];
+
+      document.querySelectorAll("#invoiceTable tbody tr").forEach(row => {
+        let product = row.querySelector(".product").value;
+        let price = row.querySelector(".price").value;
+        let quantity = row.querySelector(".quantity").value;
+        let total = row.querySelector(".total").innerText;
+
+        if (product && price && quantity) {
+          items.push({ product, price, quantity, total });
+        }
+      });
+
+      if (!invoiceNumber || !customer || items.length === 0) {
+        alert("Please enter an invoice number, customer name, and at least one item.");
+        return;
+      }
+
+      let invoiceData = { invoiceNumber, customer, invoice: items };
+
+      google.script.run.withSuccessHandler(response => {
+        alert(response);
+        resetFields(); // Call function to reset the form after saving
+      }).saveInvoice(invoiceData);
+    }
+
+    // Function to reset the form fields
+    function resetFields() {
+      document.getElementById("invoiceNumber").value = "";
+      document.getElementById("customer").value = "";
+      document.querySelector("#invoiceTable tbody").innerHTML = ""; // Clears all added items
+      document.getElementById("grandTotal").innerText = "0.00"; // Reset total
+    }
+  </script>
+</head>
+<body>
+  <h2>Sales Invoice</h2>
+  
+  <label>Invoice Number: <input type="text" id="invoiceNumber"></label>
+  <label>Customer Name: <input type="text" id="customer"></label>
+
+  <table id="invoiceTable" border="1">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Total</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <button onclick="addItem()">Add Item</button>
+  <h3>Grand Total: $<span id="grandTotal">0.00</span></h3>
+  <button onclick="saveInvoice()">Save Invoice</button>
+</body>
+</html>
