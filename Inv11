@@ -1,3 +1,80 @@
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('Sales Invoice');
+}
+
+// Function to get contact list from 'Contact' sheet
+function getContactList() {
+  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Contact");
+  var data = sheet.getRange("A2:A").getValues(); // Get contact names from column A
+  return data.filter(function(row) { return row[0] != ""; }); // Remove empty rows
+}
+
+// Function to get contact value from 'Contact' sheet
+function getContactValue(contactName) {
+  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Contact");
+  var data = sheet.getRange("A2:B").getValues(); // Get contact data from columns A and B
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0] === contactName) {
+      return data[i][1]; // Return corresponding value from column B
+    }
+  }
+  return null; // Return null if contact is not found
+}
+
+// Function to get product list from 'Product' sheet
+function getProductList() {
+  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Product");
+  var data = sheet.getRange("A2:B").getValues(); // Get product names and prices from columns A and B
+  return data.filter(function(row) { return row[0] != ""; }); // Remove empty rows
+}
+
+// Function to get the price for a specific product from 'Product' sheet
+function getProductPrice(productName) {
+  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Product");
+  var data = sheet.getRange("A2:B").getValues(); // Get product names and prices from columns A and B
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0] === productName) {
+      return data[i][1]; // Return corresponding price from column B
+    }
+  }
+  return null; // Return null if product is not found
+}
+
+// Function to get units list from 'Unit' sheet
+function getUnitsList() {
+  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Unit");
+  var data = sheet.getRange("B2:C").getValues(); // Get units from columns B and C
+  return data.filter(function(row) { return row[0] != ""; }); // Remove empty rows
+}
+
+// Function to save invoice data into 'Invoice' sheet
+function saveInvoice(data) {
+  var sheetId = '1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1'; // Replace with your Google Sheet ID
+  var sheet = SpreadsheetApp.openById(sheetId).getSheetByName("Invoice");
+
+  if (!sheet) {
+    sheet = SpreadsheetApp.openById(sheetId).insertSheet("Invoice");
+    sheet.appendRow(["Date", "Invoice Number", "Contact Name", "Product", "Price", "Quantity", "Unit", "Total"]);
+  }
+
+  var date = new Date();
+  
+  data.invoice.forEach(item => {
+    sheet.appendRow([
+      date.toLocaleDateString(),
+      data.invoiceNumber,
+      data.contact,
+      item.product,
+      item.price,
+      item.quantity,
+      item.unit,
+      item.total
+    ]);
+  });
+
+  return "Invoice saved successfully!";
+}
 <!DOCTYPE html>
 <html>
 <head>
@@ -39,13 +116,39 @@
       }).getUnitsList(); // Fetch data from the Unit sheet (Units in B and C)
     }
 
+    // Populate product dropdown with product names and prices
+    function populateProductDropdown(row) {
+      google.script.run.withSuccessHandler(function(products) {
+        let productSelect = row.querySelector(".product");
+        products.forEach(function(product) {
+          let option = document.createElement("option");
+          option.value = product[0]; // Assuming product name is in column A
+          option.text = product[0];  // Display product name
+          productSelect.appendChild(option);
+        });
+      }).getProductList(); // Fetch data from the Product sheet (Products in A and prices in B)
+    }
+
+    // Update the price when a product is selected
+    function updatePrice(selectElement) {
+      let selectedProduct = selectElement.value;
+      let row = selectElement.closest('tr');
+      
+      if (selectedProduct) {
+        google.script.run.withSuccessHandler(function(price) {
+          row.querySelector(".price").value = price || 0; // Set the price for the selected product
+          updateTotal(); // Recalculate the total
+        }).getProductPrice(selectedProduct); // Get the price for the selected product
+      }
+    }
+
     // Add new item row with product, price, quantity, and unit
     function addItem() {
       let table = document.getElementById("invTable").getElementsByTagName('tbody')[0];
       let newRow = table.insertRow();
       
       newRow.innerHTML = `
-        <td><input type="text" class="product" placeholder="Product Name"></td>
+        <td><select class="product" onchange="updatePrice(this)"><option value="">Select Product</option></select></td>
         <td><input type="number" class="price" value="0" onchange="updateTotal()"></td>
         <td><input type="number" class="quantity" value="1" onchange="updateTotal()"></td>
         <td><select class="unit" onchange="updateTotal()"></select></td>
@@ -53,6 +156,9 @@
         <td><button onclick="removeItem(this)">Delete</button></td>
       `;
       
+      // Populate the product dropdown in the new row
+      populateProductDropdown(newRow);
+
       // Populate the unit dropdown in the new row
       populateUnitDropdown(newRow);
     }
@@ -155,67 +261,3 @@
   <button onclick="saveInvoice()">Save Invoice</button>
 </body>
 </html>
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile('index')
-      .setTitle('Sales Invoice');
-}
-
-
-
-function getContactList() {
-  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Contact");
-  var data = sheet.getRange("A2:A").getValues(); // Get contact names from column A
-  return data.filter(function(row) { return row[0] != ""; }); // Remove empty rows
-}
-
-function getContactValue(contactName) {
-  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Contact");
-  var data = sheet.getRange("A2:B").getValues(); // Get contact data from columns A and B
-  for (var i = 0; i < data.length; i++) {
-    if (data[i][0] === contactName) {
-      return data[i][1]; // Return corresponding value from column B
-    }
-  }
-  return null; // Return null if contact is not found
-}
-
-
-
-// Function to get units list from 'Unit' sheet
-function getUnitsList() {
-  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Unit");
-  var data = sheet.getRange("B2:C").getValues(); // Get units from columns B and C
-  return data.filter(function(row) { return row[0] != ""; }); // Remove empty rows
-}
-
-
-
-
-
-
-function saveInvoice(data) {
-  var sheetId = '1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1'; // Replace with your Google Sheet ID
-  var sheet = SpreadsheetApp.openById(sheetId).getSheetByName("Invoice");
-
-  if (!sheet) {
-    sheet = SpreadsheetApp.openById(sheetId).insertSheet("Invoice");
-    sheet.appendRow(["Date", "Invoice Number", "Contact Name", "Product", "Price", "Quantity", "Total"]);
-  }
-
-  var date = new Date();
-  
-  data.invoice.forEach(item => {
-    sheet.appendRow([
-      date.toLocaleDateString(),
-      data.invoiceNumber,
-      data.contact,
-      item.product,
-      item.price,
-      item.quantity,
-      item.unit,
-      item.total
-    ]);
-  });
-
-  return "Invoice saved successfully!";
-}
