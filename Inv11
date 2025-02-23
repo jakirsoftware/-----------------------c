@@ -3,6 +3,7 @@
 <head>
   <base target="_top">
   <script>
+    // Populate the contact dropdown
     function contactDropdown() {
       google.script.run.withSuccessHandler(function(contacts) {
         let contactSelect = document.getElementById("contact");
@@ -15,6 +16,7 @@
       }).getContactList();
     }
 
+    // Get the value for the selected contact
     function getContactValue() {
       let contactName = document.getElementById("contact").value;
       if (contactName) {
@@ -24,6 +26,20 @@
       }
     }
 
+    // Populate the unit dropdown with values from 'Unit'!B2:B and set the value from 'Unit'!C2:C
+    function populateUnitDropdown(row) {
+      google.script.run.withSuccessHandler(function(units) {
+        let unitSelect = row.querySelector(".unit");
+        units.forEach(function(unit) {
+          let option = document.createElement("option");
+          option.value = unit[1]; // Assuming column C has the value for unit
+          option.text = unit[0];  // Assuming column B has the unit name (to display)
+          unitSelect.appendChild(option);
+        });
+      }).getUnitsList(); // Fetch data from the Unit sheet (Units in B and C)
+    }
+
+    // Add new item row with product, price, quantity, and unit
     function addItem() {
       let table = document.getElementById("invTable").getElementsByTagName('tbody')[0];
       let newRow = table.insertRow();
@@ -32,29 +48,37 @@
         <td><input type="text" class="product" placeholder="Product Name"></td>
         <td><input type="number" class="price" value="0" onchange="updateTotal()"></td>
         <td><input type="number" class="quantity" value="1" onchange="updateTotal()"></td>
+        <td><select class="unit" onchange="updateTotal()"></select></td>
         <td class="total">0.00</td>
         <td><button onclick="removeItem(this)">Delete</button></td>
       `;
+      
+      // Populate the unit dropdown in the new row
+      populateUnitDropdown(newRow);
     }
 
+    // Remove item row
     function removeItem(button) {
       let row = button.parentNode.parentNode;
       row.parentNode.removeChild(row);
       updateTotal();
     }
 
+    // Update the total of the row and grand total
     function updateTotal() {
       let total = 0;
       document.querySelectorAll("#invTable tbody tr").forEach(row => {
         let price = parseFloat(row.querySelector(".price").value) || 0;
         let quantity = parseFloat(row.querySelector(".quantity").value) || 0;
-        let amount = price * quantity;
-        row.querySelector(".total").innerText = amount.toFixed(2);
-        total += amount;
+        let unit = parseFloat(row.querySelector(".unit").value) || 1; // Ensure unit has a default value of 1 if not selected
+        let amount = price * quantity * unit;  // Multiply price, quantity, and unit
+        row.querySelector(".total").innerText = amount.toFixed(2); // Show the total for this row
+        total += amount;  // Accumulate the grand total
       });
-      document.getElementById("grandTotal").innerText = total.toFixed(2);
+      document.getElementById("grandTotal").innerText = total.toFixed(2);  // Display the grand total
     }
 
+    // Save invoice data
     function saveInvoice() {
       let invoiceNumber = document.getElementById("invoiceNumber").value;
       let contact = document.getElementById("contact").value;
@@ -64,10 +88,11 @@
         let product = row.querySelector(".product").value;
         let price = row.querySelector(".price").value;
         let quantity = row.querySelector(".quantity").value;
+        let unit = row.querySelector(".unit").value;
         let total = row.querySelector(".total").innerText;
 
         if (product && price && quantity) {
-          items.push({ product, price, quantity, total });
+          items.push({ product, price, quantity, unit, total });
         }
       });
 
@@ -80,19 +105,21 @@
 
       google.script.run.withSuccessHandler(response => {
         alert(response);
-        resetFields(); // Call function to reset the form after saving
+        resetFields(); // Reset form after saving
       }).saveInvoice(invoiceData);
     }
 
+    // Reset all fields
     function resetFields() {
       document.getElementById("invoiceNumber").value = "";
       document.getElementById("contact").value = "";
-      document.querySelector("#invTable tbody").innerHTML = ""; // Clears all added items
-      document.getElementById("grandTotal").innerText = "0.00"; // Reset total
+      document.querySelector("#invTable tbody").innerHTML = "";
+      document.getElementById("grandTotal").innerText = "0.00";
     }
 
+    // Populate contact dropdown when page loads
     window.onload = function() {
-      contactDropdown(); // Populate contact dropdown when the page loads
+      contactDropdown();
     };
   </script>
 </head>
@@ -115,6 +142,7 @@
         <th>Product</th>
         <th>Price</th>
         <th>Qty</th>
+        <th>Unit</th>
         <th>Total</th>
         <th>Action</th>
       </tr>
@@ -153,6 +181,13 @@ function getContactValue(contactName) {
 
 
 
+// Function to get units list from 'Unit' sheet
+function getUnitsList() {
+  var sheet = SpreadsheetApp.openById('1bP8grH5hV-Ywl6PYqXbbvD8b5UgzeTh1xR8axpeo0Ng1').getSheetByName("Unit");
+  var data = sheet.getRange("B2:C").getValues(); // Get units from columns B and C
+  return data.filter(function(row) { return row[0] != ""; }); // Remove empty rows
+}
+
 
 
 
@@ -177,6 +212,7 @@ function saveInvoice(data) {
       item.product,
       item.price,
       item.quantity,
+      item.unit,
       item.total
     ]);
   });
