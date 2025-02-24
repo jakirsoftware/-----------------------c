@@ -1,0 +1,104 @@
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('Index')
+      .setTitle("Three Option Selector");
+}
+
+function getTypes() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("TSO");
+  var data = sheet.getRange("A2:A" + sheet.getLastRow()).getValues().flat();
+  return [...new Set(data.filter(String))];  // Remove empty values & duplicates
+}
+
+function getSubjects(type) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("TSO");
+  var data = sheet.getDataRange().getValues();
+  
+  var subjects = data.filter(row => row[0] === type).map(row => row[1]);
+  return [...new Set(subjects.filter(String))]; // Unique & non-empty
+}
+
+function getObjects(type, subject) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("TSO");
+  var data = sheet.getDataRange().getValues();
+  
+  var objects = data.filter(row => row[0] === type && row[1] === subject).map(row => row[2]);
+  return [...new Set(objects.filter(String))]; // Unique & non-empty
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <script>
+        function onLoad() {
+            google.script.run.withSuccessHandler(populateTypes).getTypes();
+        }
+
+        function populateTypes(types) {
+            var typeSelect = document.getElementById("type");
+            typeSelect.innerHTML = "<option value=''>Select Type</option>";
+            types.forEach(type => {
+                let option = document.createElement("option");
+                option.value = type;
+                option.textContent = type;
+                typeSelect.appendChild(option);
+            });
+        }
+
+        function fetchSubjects() {
+            let type = document.getElementById("type").value;
+            let subjectSelect = document.getElementById("subject");
+            let objectSelect = document.getElementById("object");
+
+            subjectSelect.innerHTML = "<option value=''>Select Subject</option>";
+            objectSelect.innerHTML = "<option value=''>Select Object</option>";
+
+            if (type) {
+                google.script.run.withSuccessHandler(populateSubjects).getSubjects(type);
+            }
+        }
+
+        function populateSubjects(subjects) {
+            var subjectSelect = document.getElementById("subject");
+            subjects.forEach(subject => {
+                let option = document.createElement("option");
+                option.value = subject;
+                option.textContent = subject;
+                subjectSelect.appendChild(option);
+            });
+        }
+
+        function fetchObjects() {
+            let type = document.getElementById("type").value;
+            let subject = document.getElementById("subject").value;
+            let objectSelect = document.getElementById("object");
+
+            objectSelect.innerHTML = "<option value=''>Select Object</option>";
+
+            if (type && subject) {
+                google.script.run.withSuccessHandler(populateObjects).getObjects(type, subject);
+            }
+        }
+
+        function populateObjects(objects) {
+            var objectSelect = document.getElementById("object");
+            objects.forEach(object => {
+                let option = document.createElement("option");
+                option.value = object;
+                option.textContent = object;
+                objectSelect.appendChild(option);
+            });
+        }
+    </script>
+</head>
+<body onload="onLoad()">
+    <h3>Three Option Selector</h3>
+    <label for="type">Type:</label>
+    <select id="type" onchange="fetchSubjects()"></select>
+
+    <label for="subject">Subject:</label>
+    <select id="subject" onchange="fetchObjects()"></select>
+
+    <label for="object">Object:</label>
+    <select id="object"></select>
+</body>
+</html>
