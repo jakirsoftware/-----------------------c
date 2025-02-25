@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Dialog</title>
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        .buttons {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+        .dropbtn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background-color: rgba(0, 123, 255, 0.5);
+            color: white;
+            display: inline-flex;
+            align-items: center;
+        }
+        .dropbtn:hover {
+            background-color: rgba(0, 123, 255, 0.7);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            width: 30%;
+            text-align: center;
+            border-radius: 10px;
+            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+        }
+        .close {
+            float: right;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: red;
+        }
+        .modal-content a {
+            display: block;
+            padding: 10px;
+            color: blue;
+            text-decoration: none;
+            font-size: 18px;
+        }
+        .modal-content a:hover {
+            background-color: #ddd;
+        }
+    </style>
+
+<script>
+    function openModal() {
+        document.getElementById('myModal').style.display = 'block';
+    }
+    
+    function closeModal() {
+        document.getElementById('myModal').style.display = 'none';
+    }
+
+    function openPopup(url) {
+        window.open(url, 'popupWindow', 'width=800,height=600,scrollbars=yes');
+        closeModal(); // Close modal after opening the link
+    }
+</script>
+
+</head>
+
+<body>
+
+    <div class="buttons">
+        <button class="dropbtn" onclick="openModal()">Open Links</button>
+    </div>
+
+    <!-- Modal Dialog -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <p>Click:</p>
+            <a href="#" onclick="openPopup('https://google.com')">Entry</a>
+            <a href="#" onclick="openPopup('https://google.com')">তহবিলঃ</a>
+            <a href="#" onclick="openPopup('https://google.com/')">খাতঃ</a>
+        </div>
+    </div>
+
+</body>
+
+</html>
