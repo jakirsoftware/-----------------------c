@@ -18,23 +18,55 @@
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+
+<provider
+    android:name="androidx.core.content.FileProvider"
+    android:authorities="${applicationId}.provider"
+    android:grantUriPermissions="true"
+    android:exported="false">
+    <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/file_paths" />
+</provider>
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-path name="download" path="Download/" />
+</paths>
+
+
+dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation 'androidx.core:core-ktx:1.9.0'
+}
+
+
+
+
+
+
+
 
 
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import android.os.Environment
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
+import androidx.core.content.FileProvider
 import okhttp3.*
 import org.json.JSONArray
+import java.io.File
 import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
-    private val currentVersion = "1.0" // Change this to match the app's version
-    private val appName = "MyApp" // Change this to match the app name
+    private val currentVersion = "1.0" // Set your app's current version
+    private val appName = "MyApp" // Match your app name with versions.json
     private val jsonUrl = "https://drive.google.com/uc?export=download&id=YOUR_JSON_FILE_ID"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,7 +122,11 @@ class MainActivity : AppCompatActivity() {
                     val status =
                         cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
                     if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                        val apkUri = Uri.parse("file://" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/app-update.apk")
+                        val file = File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                            "app-update.apk"
+                        )
+                        val apkUri = FileProvider.getUriForFile(this@MainActivity, "${packageName}.provider", file)
                         installApk(apkUri)
                         break
                     }
