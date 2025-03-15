@@ -1,0 +1,217 @@
+//https://script.google.com/macros/s/AKfycbz9O6sXlj-8DRGYiDKOEj-54Ws-NxXlTxudfJ4gGwg6nEVfG_ypib8dHA0dksXxVmr3WQ/exec
+function doPost(e) {
+    var sheet = SpreadsheetApp.openById('1KlyWpwXfaxlU3e5S9kxMQ4ie7MfE6ksxhtXTMrxGbHg').getSheetByName("sms");
+    var data = JSON.parse(e.postData.contents);
+    
+    sheet.appendRow([data.date, data.time, data.sender, data.message]);
+    
+    return ContentService.createTextOutput("Success");
+}
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <Button
+        android:id="@+id/btnFetchSMS"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Fetch SMS"
+        android:padding="10dp"
+        android:textSize="18sp"/>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <EditText
+            android:id="@+id/txtSmsLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="SMS Logs will appear here"
+            android:textSize="16sp"
+            android:padding="10dp"
+            android:scrollbars="vertical"
+            android:editable="false"
+            android:focusable="false"
+            android:focusableInTouchMode="false"/>
+    </ScrollView>
+
+</LinearLayout>
+
+
+
+
+
+
+
+package com.example.smslogger;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import org.json.JSONObject;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+public class MainActivity extends AppCompatActivity {
+    private static final int SMS_PERMISSION_CODE = 101;
+    private static final String SHEET_URL = "https://script.google.com/macros/s/AKfycbz9O6sXlj-8DRGYiDKOEj-54Ws-NxXlTxudfJ4gGwg6nEVfG_ypib8dHA0dksXxVmr3WQ/exec"; // Replace with your Web App URL
+    private TextView txtSmsLog;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        txtSmsLog = findViewById(R.id.txtSmsLog);
+        Button btnFetchSMS = findViewById(R.id.btnFetchSMS);
+
+        btnFetchSMS.setOnClickListener(view -> {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) {
+                fetchAndSendSMS();
+            } else {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_SMS}, SMS_PERMISSION_CODE);
+            }
+        });
+    }
+
+    private void fetchAndSendSMS() {
+        Uri inboxUri = Uri.parse("content://sms/inbox");
+        Cursor cursor = getContentResolver().query(inboxUri, null, null, null, "date DESC");
+
+        if (cursor != null) {
+            StringBuilder smsLog = new StringBuilder();
+            int count = 0;
+
+            while (cursor.moveToNext() && count < 10) { // Fetch latest 10 messages
+                String sender = cursor.getString(cursor.getColumnIndexOrThrow("address"));
+                String message = cursor.getString(cursor.getColumnIndexOrThrow("body"));
+                long timestamp = cursor.getLong(cursor.getColumnIndexOrThrow("date"));
+
+                // Filter messages from bKash, Nagad, and Robi
+                if (sender.contains("bKash") || sender.contains("Nagad") || sender.contains("Islami.Bank")) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                    SimpleDateFormat stf = new SimpleDateFormat("HH:mm:ss");
+                    String date = sdf.format(new Date(timestamp));
+                    String time = stf.format(new Date(timestamp));
+
+                    smsLog.append("Sender: ").append(sender)
+                            .append("\nMessage: ").append(message)
+                            .append("\nDate: ").append(date)
+                            .append(" Time: ").append(time)
+                            .append("\n------------------------\n");
+
+                    sendToGoogleSheet(date, time, sender, message);
+                    count++;
+                }
+            }
+            txtSmsLog.setText(smsLog.toString());
+            cursor.close();
+        }
+    }
+
+    private void sendToGoogleSheet(final String date, final String time, final String sender, final String message) {
+        AsyncTask.execute(() -> {
+            try {
+                URL url = new URL(SHEET_URL);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+
+                JSONObject json = new JSONObject();
+                json.put("date", date);
+                json.put("time", time);
+                json.put("sender", sender);
+                json.put("message", message);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(json.toString().getBytes());
+                os.flush();
+                os.close();
+
+                conn.getResponseCode();
+            } catch (Exception e) {
+                Log.e("SMSLogger", "Error sending to Sheets", e);
+            }
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == SMS_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                fetchAndSendSMS();
+            } else {
+                txtSmsLog.setText("Permission Denied! Cannot access SMS.");
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Permissions for SMS and Internet access -->
+    <uses-permission android:name="android.permission.READ_SMS"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SMS2"
+        tools:targetApi="31">
+
+        <!-- Main Activity (optional) -->
+        <activity android:name=".MainActivity"
+            android:exported="true"
+            android:label="SMS Logger"
+            android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+
+
+</manifest>
