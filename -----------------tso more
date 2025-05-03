@@ -1,0 +1,786 @@
+
+function doGet() {
+return HtmlService.createTemplateFromFile('index').evaluate()
+.setTitle("Transaction")
+.addMetaTag('viewport', 'width=device-width, initial-scale=1')
+.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function tid() {
+var now = new Date();
+var yy = now.getFullYear().toString().slice(-2);
+var mm = (now.getMonth() + 1).toString().padStart(2, '0');
+var dd = now.getDate().toString().padStart(2, '0');
+var hh = now.getHours().toString().padStart(2, '0');
+var min = now.getMinutes().toString().padStart(2, '0');
+var ss = now.getSeconds().toString().padStart(2, '0');
+var ms = now.getMilliseconds().toString().padStart(2, '0');
+return `${yy}${mm}${dd}${hh}${min}${ss}${ms}`;
+//var ms = now.getMilliseconds().toString().padStart(3, '0');
+//var rand = Math.floor(Math.random() * 100).toString().padStart(2, '0'); // 00 to 99
+//return `${yy}${mm}${dd}${hh}${min}${ss}${ms}${rand}`;
+}
+
+function userPassword(user, password) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+var data = sheet.getRange("A2:D").getValues(); // M: userId, N: password, O: userInfo
+for (var i = 0; i < data.length; i++) {
+if (data[i][0].toString().trim() === user.toString().trim() && data[i][1] === password) {
+return data[i][2]; // userInfo (column O)
+}
+}
+return false; // No match
+}
+
+
+
+function getEntries() {
+  var sheet = SpreadsheetApp.openById('').getSheetByName("Entry");
+  var lastRow = sheet.getLastRow();
+  var data = sheet.getRange(2, 2, lastRow - 1, 10).getValues();
+  Logger.log(JSON.stringify(data));
+  return data.filter(row => row[0] !== "").map(row => {
+    if (row[0] instanceof Date) {
+      row[0] = Utilities.formatDate(row[0], "Asia/Dhaka", "yyyy-MM-dd");
+    }
+    return row;
+  });
+}
+
+
+
+function deleteEntry(rowIndex) {
+  var sheet = SpreadsheetApp.openById('').getSheetByName("Entry");
+  var lastRow = sheet.getLastRow();
+  // Ensure the rowIndex is within valid bounds (greater than header and not past last row)
+  if (rowIndex >= 2 && rowIndex <= lastRow) {
+    sheet.deleteRow(rowIndex);
+    return "✅ ডাটা সফলভাবে মুছে ফেলা হয়েছে!";
+  } else {
+    return "⚠️ ভুল ইনডেক্স! ডাটা মুছে ফেলা যায়নি।";
+  }
+}
+
+function getTypes() {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+var data = sheet.getRange("A2:A" + sheet.getLastRow()).getValues().flat();
+return [...new Set(data.filter(String))];  // Remove empty values & duplicates
+}
+
+function getSubjects(type) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+var data = sheet.getDataRange().getValues();
+var subjects = data.filter(row => row[0] === type).map(row => row[1]);
+return [...new Set(subjects.filter(String))]; // Unique & non-empty
+}
+
+function getObjects(type, subject) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+var data = sheet.getDataRange().getValues();
+var objects = data.filter(row => row[0] === type && row[1] === subject).map(row => row[2]);
+return [...new Set(objects.filter(String))]; // Unique & non-empty
+}
+
+function getContacts() {
+var sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+var lastRow = sheet.getLastRow();
+if (lastRow < 2) return [];
+var referenceData = sheet.getRange("F2:F" + lastRow).getValues(); // id column
+var nameData = sheet.getRange("G2:G" + lastRow).getValues();      // name column
+var valueData = sheet.getRange("J2:J" + lastRow).getValues();     // value column
+var contactList = [];
+for (var i = 0; i < referenceData.length; i++) {
+if (referenceData[i][0]) { // only include rows where id is not empty
+contactList.push({
+id: referenceData[i][0],
+name: nameData[i][0],
+value: valueData[i][0]
+});
+}
+}
+return contactList;
+}
+
+function addEntry(date, type, subject, object, contactId, cash, rem, note, full, bal) {
+  var sheet = SpreadsheetApp.openById('').getSheetByName("Entry");
+  var id = `E${tid()}`;  
+  // Format the date to dd-mm-yyyy
+  var formattedDate = Utilities.formatDate(new Date(date), Session.getScriptTimeZone(), "dd-MM-yyyy");  
+  // Append the row with the formatted date
+  sheet.appendRow([id, formattedDate, type, subject, object, contactId, cash, rem, note, full, bal]);  
+  return "✅ New Data added!";
+}
+
+
+function addContact(cName, cType, cpBal, mobile, address) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("Contact");
+var id = `C${tid()}`;
+sheet.appendRow([id, cName, cType, cpBal, mobile, address]);
+return "✅ New Contact added!";
+}
+
+function getCTypes() {
+const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+const values = sheet.getRange("E2:E" + sheet.getLastRow()).getValues();
+return values.flat().filter(v => v); // Filters out empty entries
+}
+
+function addTSO(tsoType, newSubject, newObject, tsoBal) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+// Directly add the new row without checking for duplicates
+sheet.appendRow([tsoType, newSubject, newObject, tsoBal]);
+return "✅ TSO added successfully!";
+}
+
+function getTSOTypes() {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+var data = sheet.getRange("A2:A" + sheet.getLastRow()).getValues().flat().filter(String); // Remove empty values
+var uniqueData = [...new Set(data)]; // Ensure uniqueness
+return uniqueData;
+}
+
+
+<!DOCTYPE html>
+<html>
+   <head>
+      <style>
+         body {
+         font-family: sans-serif;
+         margin: 20px;
+         overflow-x: auto; /* Allow horizontal scroll if needed */
+         }
+         .row {
+         display: flex;
+         flex-wrap: wrap;
+         gap: 3px;
+         }
+         .column {
+         flex: 1 1 calc(50% - 0.5rem); /* Always 2 columns */
+         min-width: 0; /* Allow shrinking */
+         }
+         label {
+         margin-bottom: 3px;
+         font-style: italic;
+         text-align: left;
+         font-weight: normal;
+         font-size: 14px;
+         display: block;
+         }
+         select, input {
+         padding: 3px;
+         radius: 2px;
+         font-size: 12px;
+         width: 100%;
+         box-sizing: border-box;
+         }
+         button {
+         margin: 5px;
+         padding: 5px;
+         border-radius: 2px;
+         background-color: #4CAF50;
+         color: white;
+         border: none;
+         cursor: pointer;
+         min-width: 50px;
+         }
+         button:hover {
+         background-color: #45a049;
+         }
+         .notice {
+         margin-bottom: 13px;
+         font-weight: normal;
+         }
+         #entryHeader {
+         display: flex;
+         justify-content: space-between;
+         padding: 5px;
+         background-color: #f4f4f4;
+         }
+         .header {
+         font-size: 12px;
+         text-align: center;
+         font-weight: normal;
+         }
+         #entryHeader .header:first-child {
+         width: 10%;
+         }
+         #entryHeader .header:nth-child(2) {
+         width: 75%;
+         }
+         #entryHeader .header:last-child {
+         width: 15%;
+         }
+      </style>
+      <script>
+         function checkCredentials() {
+           var userId = document.getElementById("userId").value.trim();
+           var password = document.getElementById("password").value.trim();
+           var notice = document.getElementById("showNotice");
+         
+           if (!userId || !password) {
+             showNotice("⚠️ Please enter both User ID and Password.", false);
+             return;
+           }
+         
+           google.script.run.withSuccessHandler(function(response) {
+             if (response) {
+               showEntry(true); // Your function to show the entry area
+               document.getElementById("loginForm").style.display = "none";                
+             document.getElementById("userInfo").textContent = "" + response;
+             notice.textContent = "";
+             } else {
+               showNotice("❌ Invalid User ID or Password.", false);
+               document.getElementById("userInfo").textContent = "";
+             }
+           }).userPassword(userId, password);
+         }
+         
+         
+         function logoutUser() {
+         showEntry(false);
+         document.getElementById("loginForm").style.display = "block";
+         document.getElementById("userId").value = "";
+         document.getElementById("password").value = "";
+         document.getElementById("userInfo").textContent = "";
+         }
+      </script>
+      <script>
+         document.addEventListener("DOMContentLoaded", () => {
+           const today = new Date();
+           const year = today.getFullYear();
+           const month = String(today.getMonth() + 1).padStart(2, '0');
+           const day = String(today.getDate()).padStart(2, '0');
+         
+           const dateInput = document.getElementById("date");
+           if (dateInput) {
+             dateInput.value = `${year}-${month}-${day}`;
+           }         
+              fetchEntries();;
+             google.script.run.withSuccessHandler(populateTypes).getTypes();
+         
+             loadContacts();
+             loadCTypes();
+             loadTSOTypes();
+         });
+         
+      </script>
+      <script>
+         function populateTypes(types) {
+             const typeSelect = document.getElementById("type");
+             typeSelect.innerHTML = "<option value=''>Select Type</option>";
+             types.forEach(type => {
+                 const option = document.createElement("option");
+                 option.value = type;
+                 option.textContent = type;
+                 typeSelect.appendChild(option);
+             });
+         }
+         
+         function fetchSubjects() {
+             const type = document.getElementById("type").value;
+             const subjectSelect = document.getElementById("subject");
+             const objectSelect = document.getElementById("object");
+         
+             subjectSelect.innerHTML = "<option value=''>Select Subject</option>";
+             objectSelect.innerHTML = "<option value=''>Select Object</option>";
+         
+             if (type) {
+                 google.script.run.withSuccessHandler(populateSubjects).getSubjects(type);
+             }
+         }
+         
+         function populateSubjects(subjects) {
+             const subjectSelect = document.getElementById("subject");
+             subjects.forEach(subject => {
+                 const option = document.createElement("option");
+                 option.value = subject;
+                 option.textContent = subject;
+                 subjectSelect.appendChild(option);
+             });
+         }
+         
+         function fetchObjects() {
+             const type = document.getElementById("type").value;
+             const subject = document.getElementById("subject").value;
+             const objectSelect = document.getElementById("object");
+         
+             objectSelect.innerHTML = "<option value=''>Select Object</option>";
+         
+             if (type && subject) {
+                 google.script.run.withSuccessHandler(populateObjects).getObjects(type, subject);
+             }
+         }
+         
+         function populateObjects(objects) {
+             const objectSelect = document.getElementById("object");
+             objects.forEach(object => {
+                 const option = document.createElement("option");
+                 option.value = object;
+                 option.textContent = object;
+                 objectSelect.appendChild(option);
+             });
+         }
+         
+      </script>
+      <script>
+         function loadContacts() {
+             google.script.run.withSuccessHandler(function(contacts) {
+                 const select = document.getElementById('contact');
+                 select.innerHTML = '<option value="">Contact Select:</option>';
+                 contacts.forEach(function(contact) {
+                     const option = document.createElement('option');
+                     option.value = contact.id;
+                     option.text = contact.name + ' (' + contact.value + ')';
+                     select.appendChild(option);
+                 });
+             }).getContacts();
+         }
+         
+      </script>
+      <script> 
+         function loadBanks() {
+             google.script.run.withSuccessHandler(function(banks) {
+                 const select = document.getElementById('bName');
+                 select.innerHTML = '<option value="">Bank Select:</option>';
+                 banks.forEach(function(bank) {
+                     const option = document.createElement('option');
+                     option.value = bank.id;
+                     option.text = bank.name + ' (' + bank.value + ')';
+                     select.appendChild(option);
+                 });
+             }).getBankList();
+         }
+         
+      </script>
+      <script>
+         function loadCTypes() {
+         google.script.run.withSuccessHandler(function(options) {
+           const cTypeDropdown = document.getElementById("cType");
+           cTypeDropdown.innerHTML = '<option value="">Type Select:</option>';
+           options.forEach(function(option) {
+             const opt = document.createElement("option");
+             opt.value = option;
+             opt.textContent = option;
+             cTypeDropdown.appendChild(opt);
+           });
+         }).getCTypes();
+         }
+         
+      </script>
+      <script>
+         function loadTSOTypes() {
+         google.script.run.withSuccessHandler(function(options) {
+           const tsoTypeDropdown = document.getElementById("tsoType");
+           tsoTypeDropdown.innerHTML = '<option value="">Type Select:</option>';
+           options.forEach(function(option) {
+             const opt = document.createElement("option");
+             opt.value = option;
+             opt.textContent = option;
+             tsoTypeDropdown.appendChild(opt);
+           });
+         }).getTSOTypes();
+         }
+         
+         
+      </script>
+      <script>
+         function addEntry() {
+         const date = document.getElementById("date").value.trim();
+         const type = document.getElementById("type").value.trim();
+         const subject = document.getElementById("subject").value.trim();
+         const object = document.getElementById("object").value.trim();
+         
+         const contactSelect = document.getElementById("contact");
+         const contactId = contactSelect.value.trim();
+         const contactName = contactSelect.options[contactSelect.selectedIndex]?.text || "";
+         const name = contactName.split(' (')[0];
+         
+         const cash = parseFloat(document.getElementById("cash").value.trim()) || 0;
+         const rem = document.getElementById("rem").value.trim();
+         const note = document.getElementById("note").value.trim();
+         const full = `${type} ${subject} (${name}) ${cash} টাকা। রিমাইন্ডারঃ ${rem}`;
+         const bal = balance = (subject === 'দিলাম') ? cash : (subject === 'নিলাম') ? (-cash) : 0;
+         
+         if (!date) {
+         showNotice("⚠️ Date is Empty!", false);
+         return;
+         }
+         if (!type) {
+         showNotice("⚠️ Type Is Empty!", false);
+         return;
+         }
+         if (cash <= 0 && ["লেনদেন"].includes(type)) {
+          showNotice("⚠️ Cash Box Is Empty!", false); 
+          return;
+         }
+         if (!subject && type === "লেনদেন") {
+         showNotice("⚠️ Subject Is Empty!", false);
+         return;
+         }
+         if (!contactId && ["লেনদেন", "রিমাইন্ডার"].includes(type)) {
+         showNotice("⚠️ Contact Is Empty!", false);
+         return;
+         }
+         if (!rem && ["রিমাইন্ডার"].includes(type)) {
+         showNotice("⚠️ Reminder Is Empty!", false);
+         return;
+         }  
+         
+         
+         
+         google.script.run.withSuccessHandler(response => {
+         showNotice(response, response.includes("✅"));
+         if (response.includes("✅")) {
+             if (typeof fetchEntries === "function") fetchEntries();
+             loadContacts();
+             document.getElementById("object").value = "";
+             document.getElementById("contact").value = "";
+             document.getElementById("cash").value = "";
+             document.getElementById("rem").value = "";
+             document.getElementById("note").value = "";
+         }
+         }).addEntry(date, type, subject, object, contactId, cash, rem, note, full, bal);
+         }
+         
+      </script>
+      <script>
+         function addContact() {
+         const cName = document.getElementById("cName").value.trim();
+         const cType = document.getElementById("cType").value.trim();
+         const cpBal = document.getElementById("cpBal").value.trim();
+         const mobile = document.getElementById("mobile").value.trim();
+         const address = document.getElementById("address").value.trim();
+         if (!cName) {
+         showNotice("⚠️ Contact Name is Empty!", false);
+         return;
+         }
+         if (!cType) {
+         showNotice("⚠️ Contact Type is Empty!", false);
+         return;
+         }
+         
+         
+         google.script.run.withSuccessHandler(response => {
+         showNotice(response, response.includes("✅"));
+         if (response.includes("✅")) {
+             if (typeof fetchEntries === "function") fetchEntries();
+             loadContacts();
+             document.getElementById("cName").value = "";
+             document.getElementById("cType").value = "";
+             document.getElementById("cpBal").value = "";
+             document.getElementById("mobile").value = "";
+             document.getElementById("address").value = "";
+         }
+         }).addContact(cName, cType, cpBal, mobile, address);
+         }
+         
+      </script>
+      
+      <script>
+         function submitTSO() {
+         const tsoType = document.getElementById("tsoType").value.trim();
+         const newSubject = document.getElementById("newSubject").value.trim();
+         const newObject = document.getElementById("newObject").value.trim();
+         const tsoBal = document.getElementById("tsoBal").value.trim();
+         if (!tsoType) {
+         showNotice("⚠️ Type is Empty!", false);
+         return;
+         }
+         if (!newSubject) {
+         showNotice("⚠️ Subject is Empty!", false);
+         return;
+         }
+         
+         google.script.run.withSuccessHandler(response => {
+         showNotice(response, response.includes("✅"));
+         if (response.includes("✅")) {
+             if (typeof fetchEntries === "function") fetchEntries();
+             fetchSubjects();
+             fetchObjects();
+             document.getElementById("tsoType").value = "";
+             document.getElementById("newSubject").value = "";
+             document.getElementById("newObject").value = "";
+             document.getElementById("tsoBal").value = "";
+         }
+         }).addTSO(tsoType, newSubject, newObject, tsoBal);
+         }
+         
+      </script>
+      <script>
+         function showNotice(message, isSuccess = true) {
+             const notice = document.getElementById("notice");
+             notice.innerText = message;
+             notice.style.color = isSuccess ? "green" : "red";
+             notice.style.display = "block";
+             setTimeout(() => { notice.style.display = "none"; }, 3000);
+         }
+      </script>
+      <script>
+         document.addEventListener("DOMContentLoaded", function () {
+           const typeSelect = document.getElementById("type");
+           const viewForm = document.getElementById("viewForm");
+         
+           typeSelect.addEventListener("change", function () {
+             const value = typeSelect.value.trim();
+             viewForm.style.display = value === "লেনদেন" ? "block" : "none";
+           });
+         });
+      </script>
+      <script>
+  let entryList = [];
+
+  function fetchEntries() {
+    google.script.run
+      .withSuccessHandler(response => {
+        entryList = response;
+        searchEntries(); // Optionally show results for current date input
+      })
+      .withFailureHandler(error => {
+        console.error("Failed to fetch entries:", error.message);
+        alert("Failed to load entries. Please try again.");
+      })
+      .getEntries();
+  }
+
+  function searchEntries() {
+    const searchValue = document.getElementById("date").value.trim();
+    const entryListElement = document.getElementById("entryListElement");
+
+    if (!entryListElement) {
+      console.error("entryListElement not found!");
+      return;
+    }
+
+    if (!searchValue) {
+      displayEntryList(); // show all if no date is selected
+      return;
+    }
+
+    const filteredList = entryList.filter(entry => {
+      const entryDate = new Date(entry[0]);
+      if (isNaN(entryDate)) return false; // skip invalid dates
+      const entryFormatted = entryDate.toISOString().split('T')[0];
+      return entryFormatted === searchValue;
+    });
+
+    displayEntryList(filteredList);
+  }
+
+  function displayEntryList(filteredList = null) {
+    const entryListElement = document.getElementById("entryListElement");
+    if (!entryListElement) {
+      console.error("entryListElement not found!");
+      return;
+    }
+
+    entryListElement.innerHTML = "";
+
+    const listToShow = filteredList || entryList;
+
+    if (listToShow.length === 0) {
+      entryListElement.innerHTML = "<div style='font-size:12px; color: gray;'>No entries found for the selected date.</div>";
+      return;
+    }
+
+    listToShow.forEach((entry, index) => {
+      const entryItem = document.createElement("div");
+      entryItem.className = "entry-item";
+
+      entryItem.innerHTML = `
+        <div class="entry-item" style="display: flex; align-items: center; justify-content: space-between; gap: 5px; font-size: 11px;">
+          <div style="width: 10%; text-align: center;">${index + 1}</div>
+          <span id="colW-${index}" style="width: 100%; text-align: left; font-size: 11px;">${entry[8] ?? 'No data'}</span>
+          <div style="display: flex; gap: 5px;">
+            <input type="button" value="✏️"
+              onclick="updateEntryHandler('${index}')"
+              style="width: 25px; height: 25px; background-color: orange; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px;">
+            <input type="button" value="🗑️"
+              onclick="deleteEntryHandler(${index + 2});"
+              style="width: 25px; height: 25px; background-color: red; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px;">
+          </div>
+        </div>
+      `;
+
+      entryListElement.appendChild(entryItem);
+    });
+  }
+</script>
+
+      <script>
+         function updateEntryHandler(index) {
+         // Fetch the current entry data
+         const entry = entryList[index];
+         // Convert the date format to YYYY-MM-DD if needed
+         let dateValue = entry[0]; // The original date (may not be in YYYY-MM-DD format)
+         
+         // If the date is not already in the correct format, convert it
+         if (dateValue && dateValue.includes("/")) {
+           const [month, day, year] = dateValue.split("/"); // Assuming the format is MM/DD/YYYY
+           dateValue = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;    }
+         
+         // Pre-fill the form fields with the entry data
+         document.getElementById("date").value = dateValue;
+         document.getElementById("type").value = entry[1];
+         document.getElementById("subject").value = entry[2];
+         updateIndex = index;
+         }
+      </script>
+      <script>
+         function deleteEntryHandler(rowIndex) {
+             google.script.run.withSuccessHandler(response => {
+                 showNotice(response);
+                 loadContacts();
+                 fetchEntries(); // Refresh the entry list after deletion
+             }).deleteEntry(rowIndex);
+         }
+      </script>
+   </head>
+   <body>
+      <div style="text-align: center;">
+         <hr style="border: none; border-top: 3px solid red; margin: 10px 0;">
+         <div id="notice" class="notice"></div>
+         <div id="loginForm">
+            <h4>Welcome</h4>
+            <div class="row">
+               <div class="column">
+                  <label for="userId">User ID:</label>
+                  <input id="userId" type="number">
+               </div>
+               <div class="column">
+                  <label for="password">Password:</label>
+                  <input id="password" type="password">
+               </div>
+            </div>
+            <button onclick="checkCredentials()">Login</button>
+         </div>
+         <script>
+            function showEntry() {
+                const form = document.getElementById("entryForm");
+                form.style.display = form.style.display === "none" ? "block" : "none";
+            }
+         </script>
+         <div id="entryForm" style="display: none;">
+            <h4>Data Entry</h4>
+            <div class="row">
+               <div class="column">
+                  <label for="date">Date:</label>
+                  <input id="date" type="date" onchange="fetchEntries();">
+               </div>
+               <div class="column">
+                  <label for="type">Type:</label>
+                  <select id="type" onchange="fetchSubjects()"></select>
+               </div>
+               <div id="viewForm" style="display: none;">
+                  <div class="column">
+                     <label for="subject">
+                     Subject:
+                     <span onclick="showTSO(); showEntry(false);">🕁</span>
+                     </label>
+                     <select id="subject" onchange="fetchObjects()"></select>
+                  </div>
+               </div>
+               <div class="column">
+                  <label for="contact">
+                  Contact:
+                  <span onclick="showContact(); showEntry(false);">🕁</span>
+                  </label>
+                  <select id="contact">
+                     <option value="">Loading ...</option>
+                  </select>
+               </div>
+               <div class="column">
+                  <label for="cash">Cash (Tk.):</label>
+                  <input id="cash" type="number">
+               </div>
+               <div style="display: none;">
+                  <div class="column">
+                     <label for="object">Object:</label>
+                     <select id="object"></select>
+                  </div>
+               </div>
+               <div class="column">
+                  <label for="note">Note:</label>
+                  <input id="note" type="text">
+               </div>
+               <div class="column">
+                  <label for="rem">Reminder:</label>
+                  <input id="rem" type="date">
+               </div>
+               <div class="column"></div>
+            </div>
+            <button onclick="addEntry()">Add Entry</button>
+            <button onclick="logoutUser()">Logout</button>
+            <h4>Entry List:</h4>
+            <div id="entryHeader">
+               <span class="header">ক্রঃ</span>
+               <span class="header">বিবরণ</span>
+               <span class="header">বাটন</span>
+            </div>
+            <div id="entryListElement"></div>
+         </div>
+         <script>
+            function showContact() {
+                const form = document.getElementById("contactForm");
+                form.style.display = form.style.display === "none" ? "block" : "none";
+            }
+         </script>
+         <div id="contactForm" style="display: none;">
+            <h4>Add New Contact</h4>
+            <div class="row">
+               <div class="column">
+                  <label for="cName">Contact Name:</label>
+                  <input id="cName" type="text">
+               </div>
+               <div class="column">
+                  <label for="cType">Contact Type:</label>
+                  <select id="cType">Loading ...</select>
+               </div>
+               <div class="column">
+                  <label for="cpBal">Previous Balance:</label>
+                  <input id="cpBal" type="number">
+               </div>
+               <div class="column">
+                  <label for="mobile">Mobile No.:</label>
+                  <input id="mobile" name="mobile" type="tel" pattern="[0-10]{11}" placeholder="Enter 11-digit number" required>
+               </div>
+               <div class="column">
+                  <label for="address">Full Address:</label>
+                  <input id="address" type="text">
+               </div>
+               <div class="column"></div>
+            </div>
+            <button onclick="addContact()">Add Contact</button>
+            <button onclick="showContact(false); showEntry(true);">Close</button>
+         </div>
+         <script>
+            function showTSO() {
+                const form = document.getElementById("tsoForm");
+                form.style.display = form.style.display === "none" ? "block" : "none";
+            }
+         </script>
+         <div id="tsoForm" style="display: none;">
+            <h4>Add New Subject or Object</h4>
+            <div class="row">
+               <div class="column">
+                  <label for="tsoType">Select Type:</label>
+                  <select id="tsoType">Loading ...</select>
+               </div>
+               <div class="column">
+                  <label for="newSubject">Subject:</label>
+                  <input id="newSubject" type="text">
+               </div>
+               <div class="column">
+                  <label for="newObject">Object:</label>
+                  <input id="newObject" type="text">
+               </div>
+               <div class="column">
+                  <label for="tsoBal">Balance:</label>
+                  <input id="tsoBal" type="number">
+               </div>
+            </div>
+            <button onclick="submitTSO()">Add Subject or Object</button>
+            <button onclick="showTSO(false); showEntry(true);">Close</button>
+         </div>
+      </div>
+   </body>
+</html>
