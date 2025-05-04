@@ -784,3 +784,147 @@ return uniqueData;
       </div>
    </body>
 </html>
+
+
+
+
+
+function doGet() {
+return HtmlService.createTemplateFromFile('index').evaluate()
+.setTitle("Transaction")
+.addMetaTag('viewport', 'width=device-width, initial-scale=1')
+.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function tid() {
+var now = new Date();
+var yy = now.getFullYear().toString().slice(-2);
+var mm = (now.getMonth() + 1).toString().padStart(2, '0');
+var dd = now.getDate().toString().padStart(2, '0');
+var hh = now.getHours().toString().padStart(2, '0');
+var min = now.getMinutes().toString().padStart(2, '0');
+var ss = now.getSeconds().toString().padStart(2, '0');
+var ms = now.getMilliseconds().toString().padStart(2, '0');
+return `${yy}${mm}${dd}${hh}${min}${ss}${ms}`;
+//var ms = now.getMilliseconds().toString().padStart(3, '0');
+//var rand = Math.floor(Math.random() * 100).toString().padStart(2, '0'); // 00 to 99
+//return `${yy}${mm}${dd}${hh}${min}${ss}`;
+}
+
+function userPassword(user, password) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+var data = sheet.getRange("A2:D").getValues(); // M: userId, N: password, O: userInfo
+for (var i = 0; i < data.length; i++) {
+if (data[i][0].toString().trim() === user.toString().trim() && data[i][1] === password) {
+return data[i][2]; // userInfo (column O)
+}
+}
+return false; // No match
+}
+
+
+
+function getEntries() {
+  var sheet = SpreadsheetApp.openById('').getSheetByName("Entry");
+  var lastRow = sheet.getLastRow();
+  var data = sheet.getRange(2, 2, lastRow - 1, 10).getValues();
+  Logger.log(JSON.stringify(data));
+  return data.filter(row => row[0] !== "").map(row => {
+    if (row[0] instanceof Date) {
+      row[0] = Utilities.formatDate(row[0], "Asia/Dhaka", "yyyy-MM-dd");
+    }
+    return row;
+  });
+}
+
+
+
+function deleteEntry(rowIndex) {
+  var sheet = SpreadsheetApp.openById('').getSheetByName("Entry");
+  var lastRow = sheet.getLastRow();
+  // Ensure the rowIndex is within valid bounds (greater than header and not past last row)
+  if (rowIndex >= 2 && rowIndex <= lastRow) {
+    sheet.deleteRow(rowIndex);
+    return "✅ ডাটা সফলভাবে মুছে ফেলা হয়েছে!";
+  } else {
+    return "⚠️ ভুল ইনডেক্স! ডাটা মুছে ফেলা যায়নি।";
+  }
+}
+
+function getTypes() {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+var data = sheet.getRange("A2:A" + sheet.getLastRow()).getValues().flat();
+return [...new Set(data.filter(String))];  // Remove empty values & duplicates
+}
+
+function getSubjects(type) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+var data = sheet.getDataRange().getValues();
+var subjects = data.filter(row => row[0] === type).map(row => row[1]);
+return [...new Set(subjects.filter(String))]; // Unique & non-empty
+}
+
+function getObjects(type, subject) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+var data = sheet.getDataRange().getValues();
+var objects = data.filter(row => row[0] === type && row[1] === subject).map(row => row[2]);
+return [...new Set(objects.filter(String))]; // Unique & non-empty
+}
+
+function getContacts() {
+var sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+var lastRow = sheet.getLastRow();
+if (lastRow < 2) return [];
+var referenceData = sheet.getRange("F2:F" + lastRow).getValues(); // id column
+var nameData = sheet.getRange("G2:G" + lastRow).getValues();      // name column
+var valueData = sheet.getRange("J2:J" + lastRow).getValues();     // value column
+var contactList = [];
+for (var i = 0; i < referenceData.length; i++) {
+if (referenceData[i][0]) { // only include rows where id is not empty
+contactList.push({
+id: referenceData[i][0],
+name: nameData[i][0],
+value: valueData[i][0]
+});
+}
+}
+return contactList;
+}
+
+function addEntry(date, type, subject, object, contactId, cash, rem, note, full, bal) {
+  var sheet = SpreadsheetApp.openById('').getSheetByName("Entry");
+  var id = `E${tid()}`;
+  var formattedDate = Utilities.formatDate(new Date(date), Session.getScriptTimeZone(), "dd/MM/yyyy");
+  var formattedRem = rem ? Utilities.formatDate(new Date(rem), Session.getScriptTimeZone(), "dd/MM/yyyy") : "";
+  sheet.appendRow([id, formattedDate, type, subject, object, contactId, cash, formattedRem, note, full, bal]);  
+  return "✅ New Data added!";
+}
+
+
+function addContact(cName, cType, cpBal, mobile, address) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("Contact");
+var id = `C${tid()}`;
+sheet.appendRow([id, cName, cType, cpBal, mobile, address]);
+return "✅ New Contact added!";
+}
+
+function getCTypes() {
+const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+const values = sheet.getRange("E2:E" + sheet.getLastRow()).getValues();
+return values.flat().filter(v => v); // Filters out empty entries
+}
+
+function addTSO(tsoType, newSubject, newObject, tsoBal) {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+// Directly add the new row without checking for duplicates
+sheet.appendRow([tsoType, newSubject, newObject, tsoBal]);
+return "✅ TSO added successfully!";
+}
+
+function getTSOTypes() {
+var sheet = SpreadsheetApp.openById('').getSheetByName("TSO");
+var data = sheet.getRange("A2:A" + sheet.getLastRow()).getValues().flat().filter(String); // Remove empty values
+var uniqueData = [...new Set(data)]; // Ensure uniqueness
+return uniqueData;
+}
+
