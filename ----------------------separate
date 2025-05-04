@@ -10,3 +10,70 @@ function getEntries() {
   Logger.log(filteredData);
   return filteredData;
 }
+
+
+<script>
+  let entryList = [];
+
+  function fetchEntries() {
+    google.script.run
+      .withSuccessHandler(response => {
+        entryList = response;
+        searchEntries(); // Optionally auto-search if a value exists
+      })
+      .withFailureHandler(error => {
+        console.error("Failed to fetch entries:", error.message);
+        alert("Failed to load entries. Please try again.");
+      })
+      .getEntries();
+  }
+
+  function searchEntries() {
+    const searchValue = document.getElementById("date").value.trim();
+    if (!searchValue) {
+      displayEntryList();
+      return;
+    }
+
+    // searchValue is already in yyyy-MM-dd format from <input type="date">
+    const filteredList = entryList.filter(entry => entry[0] === searchValue);
+    displayEntryList(filteredList);
+  }
+
+  function displayEntryList(filteredList = null) {
+    const entryListElement = document.getElementById("entryListElement");
+    if (!entryListElement) {
+      console.error("entryListElement not found!");
+      return;
+    }
+
+    entryListElement.innerHTML = "";
+
+    const listToShow = filteredList || entryList;
+
+    listToShow.forEach((entry, index) => {
+      const entryItem = document.createElement("div");
+      entryItem.className = "entry-item";
+
+      entryItem.innerHTML = `
+        <div class="entry-item" style="display: flex; align-items: center; justify-content: space-between; gap: 5px; font-size: 11px;">
+          <div style="width: 10%; text-align: center;">${index + 1}</div>
+
+          <span id="colW-${index}" style="width: 100%; text-align: left; font-size: 11px; padding: 4px; background-color: #f9f9b6; border: 1px solid #ccc; border-radius: 4px; display: inline-block;">
+            ${entry[1] ?? 'No data'}
+          </span>
+               
+          <input type="button" value="✏️"
+            onclick="updateEntryHandler('${index}')"
+            style="width: 25px; height: 25px; background-color: orange; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px;">
+
+          <input type="button" value="🗑️"
+            onclick="deleteEntryHandler(${index + 2});"
+            style="width: 25px; height: 25px; background-color: red; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px;">
+        </div>
+      `;
+
+      entryListElement.appendChild(entryItem);
+    });
+  }
+</script>
