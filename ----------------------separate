@@ -77,3 +77,48 @@ function getEntries() {
     });
   }
 </script>
+
+function deleteEntry(rowIndex) {
+  var sheet = SpreadsheetApp.openById('').getSheetByName("Program");
+  var lastRow = sheet.getLastRow();
+  // Ensure the rowIndex is within valid bounds (greater than header and not past last row)
+  if (rowIndex >= 2 && rowIndex <= lastRow) {
+    sheet.deleteRow(rowIndex);
+    return "✅ ডাটা সফলভাবে মুছে ফেলা হয়েছে!";
+  } else {
+    return "⚠️ ভুল ইনডেক্স! ডাটা মুছে ফেলা যায়নি।";
+  }
+}
+
+  }
+</script>
+
+        <script>
+            function deleteEntryHandler(rowIndex) {
+                google.script.run.withSuccessHandler(response => {
+                    showNotice(response);
+                    loadContacts();
+                    fetchEntries(); // Refresh the entry list after deletion
+                }).deleteEntry(rowIndex);
+            }
+        </script>
+
+        <script>
+            function updateEntryHandler(index) {
+            // Fetch the current entry data
+            const entry = entryList[index];
+            // Convert the date format to YYYY-MM-DD if needed
+            let dateValue = entry[0]; // The original date (may not be in YYYY-MM-DD format)
+            
+            // If the date is not already in the correct format, convert it
+            if (dateValue && dateValue.includes("/")) {
+              const [month, day, year] = dateValue.split("/"); // Assuming the format is MM/DD/YYYY
+              dateValue = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;    }
+            
+            // Pre-fill the form fields with the entry data
+            document.getElementById("date").value = dateValue;
+            document.getElementById("program").value = entry[3];
+            document.getElementById("goods").value = entry[4];
+            updateIndex = index;
+            }
+        </script>
