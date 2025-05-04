@@ -139,3 +139,9 @@ function deleteEntry(rowIndex) {
     }
     window.addEventListener('DOMContentLoaded', startId);
   </script>
+
+
+const contactSelect = document.getElementById("contact");
+const contact = contactSelect.value.trim();
+const contactName = contactSelect.options[contactSelect.selectedIndex]?.text || "";
+const cName = contactName.split(' (')[0];
