@@ -1,0 +1,12 @@
+function getEntries() {
+  var sheet = SpreadsheetApp.openById('').getSheetByName("Program");
+  var data = sheet.getRange("B2:Z").getValues(); // Adjusted to match actual range  
+  var filteredData = data.filter(row => row[0] !== "").map(row => {
+    if (row[0] instanceof Date) {
+      row[0] = Utilities.formatDate(row[0], Session.getScriptTimeZone(), "yyyy-MM-dd");
+    }
+    return row;
+  });
+  Logger.log(filteredData);
+  return filteredData;
+}
