@@ -1,0 +1,367 @@
+function getSubjectJournal() {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const subjectJournal = sheet.getRange("L2:L").getValues().flat().filter(String);
+  return [...new Set(subjectJournal)];
+}
+
+function getSubjectObjectJournal(subjectJournal) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const data = sheet.getRange("L2:M").getValues();
+  const objectJournal = data
+    .filter(row => row[0] === subjectJournal && row[1])
+    .map(row => row[1]);
+  return [...new Set(objectJournal)];
+}
+
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+          <style>
+         body {
+         font-family: sans-serif;
+         margin: 20px;
+         overflow-x: auto; /* Allow horizontal scroll if needed */
+         }
+         .row {
+         display: flex;
+         flex-wrap: wrap;
+         gap: 3px;
+         }
+         .column {
+         flex: 1 1 calc(50% - 0.5rem); /* Always 2 columns */
+         min-width: 0; /* Allow shrinking */
+         }
+         label {
+         margin-bottom: 3px;
+         font-style: italic;
+         text-align: left;
+         font-weight: normal;
+         font-size: 14px;
+         display: block;
+         }
+         select, input {
+         padding: 3px;
+         radius: 2px;
+         font-size: 12px;
+         width: 100%;
+         box-sizing: border-box;
+         }
+         button {
+         margin: 5px;
+         padding: 5px;
+         border-radius: 2px;
+         background-color: #4CAF50;
+         color: white;
+         border: none;
+         cursor: pointer;
+         min-width: 50px;
+         }
+         button:hover {
+         background-color: #45a049;
+         }
+         .notice {
+         margin-bottom: 13px;
+         font-weight: normal;
+         }
+         #entryHeader {
+         display: flex;
+         justify-content: space-between;
+         padding: 5px;
+         background-color: #f4f4f4;
+         }
+         .header {
+         font-size: 12px;
+         text-align: center;
+         font-weight: normal;
+         }
+         #entryHeader .header:first-child {
+         width: 10%;
+         }
+         #entryHeader .header:nth-child(2) {
+         width: 75%;
+         }
+         #entryHeader .header:last-child {
+         width: 15%;
+         }
+      </style>
+
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+
+      const journalDateInput = document.getElementById("journalDate");
+      const fromDateInput = document.getElementById("fromDate");
+      const toDateInput = document.getElementById("toDate");
+
+      if (journalDateInput) journalDateInput.value = formattedDate;
+      if (fromDateInput) fromDateInput.value = formattedDate;
+      if (toDateInput) toDateInput.value = formattedDate;
+    });
+  </script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    google.script.run.withSuccessHandler(renderSelectOptions("subjectJournalContainer", handleSubjectJournalChange)).getSubjectJournal();
+});
+
+function handleSubjectJournalChange(subjectJournal) {
+    selectedSubjectJournal = subjectJournal;
+    selectedObjectJournal = null;
+    const objectSelect = document.getElementById("objectJournalContainer");
+    objectSelect.innerHTML = ""; // Clear object dropdown
+    google.script.run.withSuccessHandler(renderSelectOptions("objectJournalContainer", handleObjectJournalChange)).getSubjectObjectJournal(subjectJournal);
+    updateHiddenInput();
+}
+
+function handleObjectJournalChange(objectJournal) {
+    selectedObjectJournal = objectJournal;
+    updateHiddenInput();
+}
+
+function renderSelectOptions(selectId, changeHandler) {
+    return function (items) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = "";
+
+        if (!items || items.length === 0) {
+            const opt = document.createElement("option");
+            opt.textContent = "No options available";
+            opt.disabled = true;
+            select.appendChild(opt);
+            return;
+        }
+
+        const defaultOpt = document.createElement("option");
+        defaultOpt.textContent = "Select an option";
+        defaultOpt.disabled = true;
+        defaultOpt.selected = true;
+        select.appendChild(defaultOpt);
+
+        items.forEach(item => {
+            const option = document.createElement("option");
+            option.value = item;
+            option.textContent = item;
+            select.appendChild(option);
+        });
+
+        select.onchange = () => changeHandler(select.value);
+    };
+}
+
+</script>
+
+
+<script>
+  // Function to call after DOM content is loaded
+  document.addEventListener("DOMContentLoaded", function() {
+    setInterval(fetchJournalList, 1000); // Call fetchJournalList after 1 second
+  });
+  let journalList = [];
+
+  function fetchJournalList() {
+    google.script.run
+      .withSuccessHandler(response => {
+        console.log("Journal list received:", response);
+        journalList = response || [];
+        searchEntries();  // Auto filter by current value in journalDate
+      })
+      .withFailureHandler(error => {
+        console.error("Failed to fetch entries:", error.message);
+        showNotice("আপনার ইন্টারনেট স্পীড দুর্বল, আবার চেষ্টা করুন!", false);
+      })
+      .getJournalList();
+  }
+
+function searchEntries() {
+  const fromDate = document.getElementById("fromDate").value;
+  const toDate = document.getElementById("toDate").value;
+
+  const filteredList = journalList.filter(entry => {
+    const entryDate = entry[0]?.trim();
+    if (!entryDate) return false;
+
+    return (!fromDate || entryDate >= fromDate) &&
+           (!toDate || entryDate <= toDate);
+  });
+
+  displayJournalList(filteredList);
+}
+
+
+  function displayJournalList(filteredList = null) {
+    const journalListElement = document.getElementById("journalListElement");
+    if (!journalListElement) return;
+
+    journalListElement.innerHTML = "";
+
+    const listToShow = filteredList || journalList;
+
+    listToShow.forEach((entry, index) => {
+      const entryItem = document.createElement("div");
+      entryItem.className = "entry-item";
+
+      entryItem.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 5px; font-size: 11px;">
+          <div style="width: 10%; text-align: center;">${index + 1}</div>
+          <span id="${index}" style="width: 100%; text-align: left; font-size: 11px; padding: 4px; background-color: #f9f9b6; border: 1px solid #ccc; border-radius: 4px; display: inline-block;">
+            ${entry[0] ?? 'No data'}, ${entry[1] ?? ''}, ${entry[2] ?? ''}
+          </span>
+          <input subjectJournal="button" value="✏️"
+            onclick="upjournalDateHandler('${index}')"
+            style="width: 25px; height: 25px; background-color: orange; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px;">
+          <input subjectJournal="button" value="🗑️"
+            onclick="deleteJournalHandler(${index + 2});"
+            style="width: 25px; height: 25px; background-color: red; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px;">
+        </div>
+      `;
+
+      journalListElement.appendChild(entryItem);
+    });
+  }
+
+  // Listen for changes in the date input
+  document.getElementById("journalDate").addEventListener("change", searchEntries);
+</script>
+
+
+
+<script>
+   function deleteJournalHandler(rowIndex) {
+       google.script.run.withSuccessHandler(response => {
+           showNotice(response);
+           fetchJournalList();
+       }).deleteJournal(rowIndex);
+   }
+</script>
+
+<script>
+function upjournalDateHandler(index) {
+  const journal = journalList[index];
+  document.getElementById("journalDate").value = journal[0];
+  document.getElementById("subjectJournal").value = journal[1];
+  document.getElementById("contactJournal").value = journal[2];
+  document.getElementById("objectJournal").value = journal[3];
+  document.getElementById("amount").value = journal[4];
+  document.getElementById("note").value = journal[6];
+  updateIndex = index; // assuming updateIndex is a global variable declared elsewhere
+}
+
+</script>
+
+      <script>
+         function addJournal() {
+         const journalDate = document.getElementById("journalDate").value.trim();
+         const subjectJournal = document.getElementById("subjectJournal").value.trim();
+         const objectJournal = document.getElementById("objectJournal").value.trim();
+         const contactJournal = document.getElementById("contactJournal").value.trim();
+         const amount = parseFloat(document.getElementById("amount").value.trim()) || 0;
+         const note = document.getElementById("note").value.trim();
+         
+         if (!journalDate) return showNotice("⚠️ তারিখের ঘর খালি!", false);
+         if (!subjectJournal) return showNotice("⚠️ ধরণের ঘর খালি!", false);
+         if (amount <= 0) return showNotice("⚠️ টাকার ঘর খালি!", false);
+         
+         google.script.run.withSuccessHandler(response => {
+         showNotice(response, response.includes("✅"));
+         if (response.includes("✅")) {
+             if (typeof fetchEntries === "function") fetchEntries();
+             // Clear the form
+             fetchJournalList();
+         const fieldsToClear = [
+         "subjectJournal", "contactJournal", "objectJournal", "amount", "note"];
+         fieldsToClear.forEach(id => document.getElementById(id).value = "");
+         }
+         }).addJournal(subjectJournal, contactJournal, objectJournal, amount, note);
+         }    
+         
+      </script>
+
+<script>
+  function clearJournalFields() {
+    const fieldIds = [
+      "subjectJournal", "contactJournal", "objectJournal", "amount", "note"
+    ];
+
+    fieldIds.forEach(id => {
+      const field = document.getElementById(id);
+      if (field) {
+        if (field.tagName === "SELECT") {
+          field.selectedIndex = 0;
+        } else {
+          field.value = "";
+        }
+      }
+    });
+  }
+</script>
+
+
+<script>
+  document.addEventListener("DOMContentLoaded", loadcontactJournal);
+  </script>
+        </head>
+  <body>
+<div style="text-align: center;">
+<h4>কাজের হিসাব-নিকাশঃ</h4>
+            <div class="row">
+               <div class="column">
+                  <label for="journalDate">তারিখঃ</label>
+                  <input id="journalDate" type="date">
+               </div>
+<div class="column">
+    <label for="subjectJournalContainer">ধরণঃ</label>
+    <select id="subjectJournalContainer"></select>
+</div>
+<div class="column">
+    <label for="objectJournalContainer">টায়ার নাম্বারঃ</label>
+    <select id="objectJournalContainer"></select>
+</div>
+
+
+               <div class="column">
+                <label for="contactJournal">গাড়ি বাছাইঃ</label>
+                  <select id="contactJournal">
+              <option value="">লোড হচ্ছে...</option>
+            </select>
+               </div>               
+               <div class="column">
+                  <label for="amount">মোট খরচঃ</label>
+                  <input id="amount" type="number">
+               </div>
+               <div class="column">
+                  <label for="note">কাজের বিবরণঃ</label>
+                  <input id="note" type="text">
+               </div>
+               <div class="column"></div>
+            </div>
+      
+<button onclick="clearJournalFields()" style="background-color: #888;">ক্লিয়ার</button>
+<button onclick="addJournal();">সাবমিট</button>
+<button onclick="showJournal(false); showEntry(true);">বন্ধ</button>
+
+<h4>তালিকাঃ</h4>
+<div style="display: flex; align-items: center; gap: 1rem; justify-content: center;">
+  <label for="fromDate">From Date</label>
+  <input type="date" id="fromDate" style="width: 150px">  
+  <label for="toDate">To Date</label>
+  <input type="date" id="toDate" style="width: 150px">
+</div>
+                     
+<div id="entryHeader">
+    <span class="header">ক্রঃ</span>
+    <span class="header">বিবরণ</span>
+    <span class="header">বাটন</span>
+</div>
+<div id="journalListElement"></div>
+</div>
+  </body>
+</html>
