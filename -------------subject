@@ -1,6 +1,6 @@
 function getSubjectObject() {
   const sheet = SpreadsheetApp.openById('').getSheetByName("Subject");
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+  const data = sheet.getRange("A2:B").getValues();
 
   const map = {};
   data.forEach(([subject, object]) => {
