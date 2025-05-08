@@ -1,0 +1,65 @@
+function getSubjectObject() {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Subject");
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+
+  const map = {};
+  data.forEach(([subject, object]) => {
+    if (subject) {
+      if (!map[subject]) map[subject] = [];
+      map[subject].push(object);
+    }
+  });
+
+  return map;
+}
+
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+      let subjectObjectMap = {};
+
+      // Load unique subjects on page load
+      function loadSubjects() {
+        google.script.run.withSuccessHandler((data) => {
+          subjectObjectMap = data;
+          const subjectSelect = document.getElementById("subject");
+          subjectSelect.innerHTML = `<option value="">-- Select Subject --</option>`;
+          
+          // Load unique subject keys
+          const uniqueSubjects = Object.keys(subjectObjectMap);
+          uniqueSubjects.forEach(sub => {
+            subjectSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+          });
+        }).getSubjectObject();
+      }
+
+      // Update objects dropdown based on selected subject
+      function onSubjectChange() {
+        const subject = document.getElementById("subject").value;
+        const objectSelect = document.getElementById("object");
+        objectSelect.innerHTML = `<option value="">-- Select Object --</option>`;
+        
+        if (subject && subjectObjectMap[subject]) {
+          subjectObjectMap[subject].forEach(obj => {
+            objectSelect.innerHTML += `<option value="${obj}">${obj}</option>`;
+          });
+        }
+      }
+
+      window.onload = loadSubjects;
+    </script>
+  </head>
+  <body>
+    <label for="subject"><b>Subject:</b></label><br>
+    <select id="subject" onchange="onSubjectChange()"></select>
+
+    <br><br>
+
+    <label for="object"><b>Object:</b></label><br>
+    <select id="object"></select>
+  </body>
+</html>
