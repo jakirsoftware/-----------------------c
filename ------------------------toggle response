@@ -1,0 +1,97 @@
+function doGet() {
+  const sheet = SpreadsheetApp.openBy.getSheetByName("Setup");
+  const ranges = ["D2", "D3", "D4"];
+  const values = ranges.map(r => {
+    let v = sheet.getRange(r).getValue();
+    if (!v) {
+      sheet.getRange(r).setValue("none");
+      return "none";
+    }
+    return v.toString().toLowerCase();
+  });
+
+  const template = HtmlService.createTemplateFromFile("Index");
+  template.setupValues = {
+    invoice: values[0],
+    cash: values[1],
+    bank: values[2]
+  };
+  return template.evaluate();
+}
+
+function updateSetupValue(cell, value) {
+  const sheet = SpreadsheetApp.op).getSheetByName("Setup");
+  sheet.getRange(cell).setValue(value);
+}
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    .content-box {
+      display: none;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    .toggle-row {
+      margin-bottom: 10px;
+    }
+    label {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toggle-row">
+    <label><input type="checkbox" id="invoiceToggle"> Show Invoice</label>
+  </div>
+  <div id="invoiceContent" class="content-box">This is the invoice content.</div>
+
+  <div class="toggle-row">
+    <label><input type="checkbox" id="cashToggle"> Show Cash</label>
+  </div>
+  <div id="cashContent" class="content-box">This is the cash content.</div>
+
+  <div class="toggle-row">
+    <label><input type="checkbox" id="bankToggle"> Show Bank</label>
+  </div>
+  <div id="bankContent" class="content-box">This is the bank content.</div>
+
+  <script>
+    const setupValues = <?= JSON.stringify(setupValues) ?>;
+
+    const sections = [
+      { id: 'invoiceContent', toggle: 'invoiceToggle', value: setupValues.invoice, cell: 'D2' },
+      { id: 'cashContent', toggle: 'cashToggle', value: setupValues.cash, cell: 'D3' },
+      { id: 'bankContent', toggle: 'bankToggle', value: setupValues.bank, cell: 'D4' },
+    ];
+
+    sections.forEach(({ id, toggle, value, cell }) => {
+      const content = document.getElementById(id);
+      const checkbox = document.getElementById(toggle);
+
+      // Default to 'none' (hidden) if value is blank or not 'block'
+      const isVisible = value && value.toString().toLowerCase() === 'block';
+      content.style.display = isVisible ? 'block' : 'none';
+      checkbox.checked = isVisible;
+
+      // Toggle handler
+      checkbox.addEventListener('change', () => {
+        const newValue = checkbox.checked ? 'block' : 'none';
+        content.style.display = newValue;
+
+        google.script.run
+          .withFailureHandler(() => alert(`Failed to update ${cell}`))
+          .updateSetupValue(cell, newValue);
+      });
+    });
+  </script>
+
+</body>
+</html>
