@@ -1,0 +1,52 @@
+function doGet() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Setup");
+  const values = {
+    invoice: sheet.getRange("D2").getValue(),
+    cash: sheet.getRange("D3").getValue(),
+    bank: sheet.getRange("D4").getValue()
+  };
+  const template = HtmlService.createTemplateFromFile("Index");
+  template.setupValues = values;
+  return template.evaluate();
+}
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    #invoiceContent, #cashContent, #bankContent {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="invoiceContent">
+    <p>This is the invoice content.</p>
+  </div>
+
+  <div id="cashContent">
+    <p>This is the cash content.</p>
+  </div>
+
+  <div id="bankContent">
+    <p>This is the bank content.</p>
+  </div>
+
+  <script>
+    const setupValues = <?= JSON.stringify(setupValues) ?>;
+
+    function toggleContent(id, value) {
+      document.getElementById(id).style.display =
+        value.toLowerCase() === "none" ? "none" : "block";
+    }
+
+    toggleContent("invoiceContent", setupValues.invoice);
+    toggleContent("cashContent", setupValues.cash);
+    toggleContent("bankContent", setupValues.bank);
+  </script>
+
+</body>
+</html>
