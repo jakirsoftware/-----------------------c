@@ -30,66 +30,66 @@ function updateSetupValue(cell, value) {
 <head>
   <base target="_top">
   <style>
-    .content-box {
+    .content-section {
       display: none;
-      border: 1px solid #ccc;
       padding: 10px;
       margin: 10px 0;
-      border-radius: 5px;
-      background-color: #f9f9f9;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background-color: #f0f0f0;
     }
-    .toggle-row {
+    .controls {
       margin-bottom: 10px;
-    }
-    label {
-      font-weight: bold;
     }
   </style>
 </head>
 <body>
 
-  <div class="toggle-row">
-    <label><input type="checkbox" id="invoiceToggle"> Show Invoice</label>
-  </div>
-  <div id="invoiceContent" class="content-box">This is the invoice content.</div>
-
-  <div class="toggle-row">
-    <label><input type="checkbox" id="cashToggle"> Show Cash</label>
-  </div>
-  <div id="cashContent" class="content-box">This is the cash content.</div>
-
-  <div class="toggle-row">
+  <div class="controls">
+    <label><input type="checkbox" id="invoiceToggle"> Show Invoice</label><br>
+    <label><input type="checkbox" id="cashToggle"> Show Cash</label><br>
     <label><input type="checkbox" id="bankToggle"> Show Bank</label>
   </div>
-  <div id="bankContent" class="content-box">This is the bank content.</div>
+
+  <div id="invoiceContent" class="content-section">
+    <strong>Invoice Section</strong><br>
+    This is the invoice content.
+  </div>
+
+  <div id="cashContent" class="content-section">
+    <strong>Cash Section</strong><br>
+    This is the cash content.
+  </div>
+
+  <div id="bankContent" class="content-section">
+    <strong>Bank Section</strong><br>
+    This is the bank content.
+  </div>
 
   <script>
-    const setupValues = <?= JSON.stringify(setupValues) ?>;
+    function invoiceContent(displayStyle) { 
+      document.getElementById("invoiceContent").style.display = displayStyle; 
+    }
 
-    const sections = [
-      { id: 'invoiceContent', toggle: 'invoiceToggle', value: setupValues.invoice, cell: 'D2' },
-      { id: 'cashContent', toggle: 'cashToggle', value: setupValues.cash, cell: 'D3' },
-      { id: 'bankContent', toggle: 'bankToggle', value: setupValues.bank, cell: 'D4' },
-    ];
+    function cashContent(displayStyle) { 
+      document.getElementById("cashContent").style.display = displayStyle;
+    }
 
-    sections.forEach(({ id, toggle, value, cell }) => {
-      const content = document.getElementById(id);
-      const checkbox = document.getElementById(toggle);
+    function bankContent(displayStyle) { 
+      document.getElementById("bankContent").style.display = displayStyle;
+    }
 
-      // Default to 'none' (hidden) if value is blank or not 'block'
-      const isVisible = value && value.toString().toLowerCase() === 'block';
-      content.style.display = isVisible ? 'block' : 'none';
-      checkbox.checked = isVisible;
+    // Set up checkbox listeners
+    document.getElementById("invoiceToggle").addEventListener("change", function() {
+      invoiceContent(this.checked ? "block" : "none");
+    });
 
-      // Toggle handler
-      checkbox.addEventListener('change', () => {
-        const newValue = checkbox.checked ? 'block' : 'none';
-        content.style.display = newValue;
+    document.getElementById("cashToggle").addEventListener("change", function() {
+      cashContent(this.checked ? "block" : "none");
+    });
 
-        google.script.run
-          .withFailureHandler(() => alert(`Failed to update ${cell}`))
-          .updateSetupValue(cell, newValue);
-      });
+    document.getElementById("bankToggle").addEventListener("change", function() {
+      bankContent(this.checked ? "block" : "none");
     });
   </script>
 
