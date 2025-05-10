@@ -25,6 +25,7 @@ function updateSetupValue(cell, value) {
 }
 
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -66,32 +67,54 @@ function updateSetupValue(cell, value) {
     This is the bank content.
   </div>
 
-  <script>
-    function invoiceContent(displayStyle) { 
-      document.getElementById("invoiceContent").style.display = displayStyle; 
-    }
+<script>
+  function invoiceContent(displayStyle) { 
+    document.getElementById("invoiceContent").style.display = displayStyle; 
+  }
 
-    function cashContent(displayStyle) { 
-      document.getElementById("cashContent").style.display = displayStyle;
-    }
+  function cashContent(displayStyle) { 
+    document.getElementById("cashContent").style.display = displayStyle;
+  }
 
-    function bankContent(displayStyle) { 
-      document.getElementById("bankContent").style.display = displayStyle;
-    }
+  function bankContent(displayStyle) { 
+    document.getElementById("bankContent").style.display = displayStyle;
+  }
 
-    // Set up checkbox listeners
+  function updateSection(checkboxId, contentFunction, storageKey) {
+    const checkbox = document.getElementById(checkboxId);
+    const isChecked = checkbox.checked;
+    localStorage.setItem(storageKey, isChecked);
+    contentFunction(isChecked ? "block" : "none");
+  }
+
+  // Setup on page load
+  window.addEventListener("DOMContentLoaded", function() {
+    const invoiceChecked = localStorage.getItem("showInvoice") === "true";
+    const cashChecked = localStorage.getItem("showCash") === "true";
+    const bankChecked = localStorage.getItem("showBank") === "true";
+
+    document.getElementById("invoiceToggle").checked = invoiceChecked;
+    document.getElementById("cashToggle").checked = cashChecked;
+    document.getElementById("bankToggle").checked = bankChecked;
+
+    invoiceContent(invoiceChecked ? "block" : "none");
+    cashContent(cashChecked ? "block" : "none");
+    bankContent(bankChecked ? "block" : "none");
+
     document.getElementById("invoiceToggle").addEventListener("change", function() {
-      invoiceContent(this.checked ? "block" : "none");
+      updateSection("invoiceToggle", invoiceContent, "showInvoice");
     });
 
     document.getElementById("cashToggle").addEventListener("change", function() {
-      cashContent(this.checked ? "block" : "none");
+      updateSection("cashToggle", cashContent, "showCash");
     });
 
     document.getElementById("bankToggle").addEventListener("change", function() {
-      bankContent(this.checked ? "block" : "none");
+      updateSection("bankToggle", bankContent, "showBank");
     });
-  </script>
+  });
+</script>
+
 
 </body>
 </html>
