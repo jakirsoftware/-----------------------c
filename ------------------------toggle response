@@ -1,3 +1,43 @@
+function doGet() {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Setup");
+  const ranges = ["D2", "D3", "D4", "D5", "D6", "D7"];
+  const values = ranges.map(r => {
+    let v = sheet.getRange(r).getValue();
+    if (!v) {
+      sheet.getRange(r).setValue("none");
+      return "none";
+    }
+    return v.toString().toLowerCase();
+  });
+
+  const template = HtmlService.createTemplateFromFile("index");
+  template.setupValues = {
+    invoice: values[0],
+    discount: values[1],
+    bank: values[2],
+    reminder: values[3],
+    carrying: values[4],
+    labor: values[5]
+  };
+
+  return template.evaluate()
+    .setTitle('v2')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// Helper to include HTML partials (for use in .html templates)
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+function updateSetupValue(cell, value) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Setup");
+  sheet.getRange(cell).setValue(value);
+}
+
+
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -21,7 +61,10 @@
   <div class="controls">
     <label><input type="checkbox" id="invoiceToggle"> Show Invoice</label><br>
     <label><input type="checkbox" id="discountToggle"> Show Discount</label><br>
-    <label><input type="checkbox" id="bankToggle"> Show Bank</label>
+    <label><input type="checkbox" id="bankToggle"> Show Bank</label><br>
+    <label><input type="checkbox" id="reminderToggle"> Show Reminder</label><br>
+    <label><input type="checkbox" id="carryingToggle"> Show Carrying</label><br>
+    <label><input type="checkbox" id="laborToggle"> Show Labor</label>
   </div>
 
   <div id="invoiceContent" class="content-section">
@@ -39,6 +82,21 @@
     This is the bank content.
   </div>
 
+  <div id="reminderContent" class="content-section">
+    <strong>Reminder Section</strong><br>
+    This is the reminder content.
+  </div>
+
+  <div id="carryingContent" class="content-section">
+    <strong>Carrying Section</strong><br>
+    This is the carrying content.
+  </div>
+
+  <div id="laborContent" class="content-section">
+    <strong>Labor Section</strong><br>
+    This is the labor content.
+  </div>
+
   <script>
     function invoiceContent(displayStyle) { 
       document.getElementById("invoiceContent").style.display = displayStyle; 
@@ -50,6 +108,18 @@
 
     function bankContent(displayStyle) { 
       document.getElementById("bankContent").style.display = displayStyle;
+    }
+
+    function reminderContent(displayStyle) { 
+      document.getElementById("reminderContent").style.display = displayStyle;
+    }
+
+    function carryingContent(displayStyle) { 
+      document.getElementById("carryingContent").style.display = displayStyle;
+    }
+
+    function laborContent(displayStyle) { 
+      document.getElementById("laborContent").style.display = displayStyle;
     }
 
     function updateSection(checkboxId, contentFunction, storageKey, cell) {
@@ -69,14 +139,23 @@
       const invoiceChecked = localStorage.getItem("showInvoice") === "true";
       const discountChecked = localStorage.getItem("showDiscount") === "true";
       const bankChecked = localStorage.getItem("showBank") === "true";
+      const reminderChecked = localStorage.getItem("showReminder") === "true";
+      const carryingChecked = localStorage.getItem("showCarrying") === "true";
+      const laborChecked = localStorage.getItem("showLabor") === "true";
 
       document.getElementById("invoiceToggle").checked = invoiceChecked;
       document.getElementById("discountToggle").checked = discountChecked;
       document.getElementById("bankToggle").checked = bankChecked;
+      document.getElementById("reminderToggle").checked = reminderChecked;
+      document.getElementById("carryingToggle").checked = carryingChecked;
+      document.getElementById("laborToggle").checked = laborChecked;
 
       invoiceContent(invoiceChecked ? "block" : "none");
       discountContent(discountChecked ? "block" : "none");
       bankContent(bankChecked ? "block" : "none");
+      reminderContent(reminderChecked ? "block" : "none");
+      carryingContent(carryingChecked ? "block" : "none");
+      laborContent(laborChecked ? "block" : "none");
 
       document.getElementById("invoiceToggle").addEventListener("change", function() {
         updateSection("invoiceToggle", invoiceContent, "showInvoice", "D2");
@@ -89,48 +168,20 @@
       document.getElementById("bankToggle").addEventListener("change", function() {
         updateSection("bankToggle", bankContent, "showBank", "D4");
       });
+
+      document.getElementById("reminderToggle").addEventListener("change", function() {
+        updateSection("reminderToggle", reminderContent, "showReminder", "D5");
+      });
+
+      document.getElementById("carryingToggle").addEventListener("change", function() {
+        updateSection("carryingToggle", carryingContent, "showCarrying", "D6");
+      });
+
+      document.getElementById("laborToggle").addEventListener("change", function() {
+        updateSection("laborToggle", laborContent, "showLabor", "D7");
+      });
     });
   </script>
 
 </body>
 </html>
-
-
-
-
-
-
-function doGet() {
-  const sheet = SpreadsheetApp.getSheetByName("Setup");
-  const ranges = ["D2", "D3", "D4"];
-  const values = ranges.map(r => {
-    let v = sheet.getRange(r).getValue();
-    if (!v) {
-      sheet.getRange(r).setValue("none");
-      return "none";
-    }
-    return v.toString().toLowerCase();
-  });
-
-  const template = HtmlService.createTemplateFromFile("index");
-  template.setupValues = {
-    invoice: values[0],
-    discount: values[1],
-    bank: values[2]
-  };
-  
-  return template.evaluate()
-    .setTitle('v2')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // You might prefer SAMEORIGIN for security
-}
-
-// Helper to include HTML partials (for use in .html templates)
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
-}
-
-function updateSetupValue(cell, value) {
-  const sheet = SpreadsheetApp.getSheetByName("Setup");
-  sheet.getRange(cell).setValue(value);
-}
