@@ -1,0 +1,23 @@
+function showValues() {
+  const sheet = SpreadsheetApp.openById
+  const values = sheet.getRange("H2:I2").getValues();
+  Logger.log(values); // Logs in Apps Script Execution Log
+  return values;
+}
+
+function updateValues() {
+  const sheet = SpreadsheetApp.openById
+  const newValues = [["Updated Value 1", "Updated Value 2"]]; // Change as needed
+  sheet.getRange("H2:I2").setValues(newValues);
+}
+
+function clearValues() {
+  const sheet = SpreadsheetApp.openById
+  sheet.getRange("H2:I2").clearContent();
+}
+
+
+<button onclick="google.script.run.showValues()">Show</button>
+<button onclick="google.script.run.updateValues()">Update</button>
+<button onclick="google.script.run.clearValues()">Clear</button>
+
