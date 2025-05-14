@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      input, select {
+        display: block;
+        margin: 8px 0;
+        padding: 8px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      button {
+        padding: 10px;
+        margin-top: 10px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #45a049;
+      }
+
+      #notice {
+        margin-top: 20px;
+        font-weight: bold;
+      }
+
+      #confirmBox {
+        display: none;
+        margin-top: 15px;
+        padding: 15px;
+        border: 1px solid #ccc;
+        background-color: #f9f9f9;
+      }
+
+      #confirmBox button {
+        margin-right: 10px;
+        background-color: #008CBA;
+      }
+
+      #confirmBox button:hover {
+        background-color: #007bb5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">   
+      <div>
+        <h3>Add New Data:</h3>
+        <input type="text" id="newUnitName" placeholder="Enter Unit Name">
+        <input type="text" id="newUnitValue" placeholder="Enter Unit Value">
+        <button onclick="addNewUnit()">Add New</button>
+      </div>
+      
+      <div>
+        <h3>Update Data:</h3>
+        <select id="searchUnitName">
+          <option value="">লোড হচ্ছে...</option>
+        </select>
+        <input type="text" id="updateUnitName" placeholder="Updated Unit Name">
+        <input type="text" id="updateUnitValue" placeholder="Updated Unit Value">
+        <button onclick="update()">Update</button>
+      </div>
+
+      <div id="confirmBox">
+        <p>Are you sure you want to update the selected data?</p>
+        <button onclick="confirmUpdate(true)">Yes</button>
+        <button onclick="confirmUpdate(false)">No</button>
+      </div>
+
+      <div id="notice"></div>
+    </div>
+
+    <script>
+      function showNotice(message, isError = false) {
+        const notice = document.getElementById('notice');
+        notice.textContent = message;
+        notice.style.color = isError ? 'red' : 'green';
+      }
+
+      function addNewUnit() {
+        const unitName = document.getElementById('newUnitName').value.trim();
+        const unitValue = document.getElementById('newUnitValue').value.trim();
+
+        if (!unitName || !unitValue) {
+          showNotice('Both fields are required.', true);
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(function(response) {
+            const isError = response.includes("already exists");
+            showNotice(response, isError);
+            document.getElementById("newUnitName").value = "";
+            document.getElementById("newUnitValue").value = "";
+            searchUnit(); 
+          })
+          .addNewUnitData(unitName, unitValue);
+      }
+
+      let pendingUpdateData = {};
+
+      function update() {
+        const searchUnitName = document.getElementById('searchUnitName').value.trim();
+        const updateUnitName = document.getElementById('updateUnitName').value.trim();
+        const updateUnitValue = document.getElementById('updateUnitValue').value.trim();
+
+        if (!searchUnitName || !updateUnitName || !updateUnitValue) {
+          showNotice('All fields are required for update.', true);
+          return;
+        }
+
+        pendingUpdateData = { searchUnitName, updateUnitName, updateUnitValue };
+        document.getElementById('confirmBox').style.display = 'block';
+      }
+
+      function confirmUpdate(confirmed) {
+        document.getElementById('confirmBox').style.display = 'none';
+
+        if (confirmed) {
+          const { searchUnitName, updateUnitName, updateUnitValue } = pendingUpdateData;
+          google.script.run
+            .withSuccessHandler(function() {
+              showNotice('Data updated!');
+              searchUnit(); 
+            })
+            .updateData(searchUnitName, updateUnitName, updateUnitValue);
+        } else {
+          showNotice("Update canceled.", true);
+        }
+
+        pendingUpdateData = {};
+      }
+
+      function searchUnit() {
+        google.script.run.withSuccessHandler((searchUnitNames) => {
+          const select = document.getElementById("searchUnitName");
+          select.innerHTML = '<option value="">-- বাছাই করুন --</option>';
+          searchUnitNames.forEach(searchUnitName => {
+            const option = document.createElement("option");
+            option.value = searchUnitName.value;
+            option.text = searchUnitName.label;
+            select.appendChild(option);
+          });
+        }).searchUnit();
+      }
+
+      document.addEventListener("DOMContentLoaded", function() {
+        searchUnit(); 
+      });
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+const SHEET_ID = '';
+const SHEET_NAME = 'Extra';
+
+function getSheet() {
+  const spreadsheet = SpreadsheetApp.openById(SHEET_ID);
+  return spreadsheet.getSheetByName(SHEET_NAME);
+}
+
+// Function to serve HTML page
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index');
+}
+
+function addNewUnitData(unitName, unitValue) {
+  const sheet = getSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 'No data rows available.';
+  const names = sheet.getRange("H2:H" + lastRow).getValues().flat();
+  const values = sheet.getRange("I2:I" + lastRow).getValues().flat();
+  // Create combined strings: e.g., "kg (Kilogram)"
+  const combinedUnits = names.map((name, i) => `${name} (${values[i]})`);
+  const newUnit = `${unitName} (${unitValue})`;
+  if (combinedUnits.includes(newUnit)) {
+    return `Unit "${newUnit}" already exists.`; // Exact match of both name and value
+  }
+  const nextRow = lastRow + 1;
+  sheet.getRange(nextRow, 8).setValue(unitName);  // Column H
+  sheet.getRange(nextRow, 9).setValue(unitValue); // Column I
+
+  return `Unit "${newUnit}" added successfully.`;
+}
+
+
+
+
+
+
+function updateData(searchTerm, unitName, unitValue) {
+  const sheet = getSheet();
+  const data = sheet.getRange("H2:H" + sheet.getLastRow()).getValues();
+  
+  for (let i = 0; i < data.length; i++) {
+    if (data[i][0] === searchTerm) {
+      const row = i + 2; // Adjust for header (starts at H2)
+      sheet.getRange(row, 8, 1, 2).setValues([[unitName, unitValue]]);
+      return;
+    }
+  }
+  
+  Logger.log('Value not found: ' + searchTerm);
+}
+
+
+function searchUnit() {
+  const sheet = SpreadsheetApp.openById('1rmwFmwLHk-u17TnSSwM721EjVTAa_tNNWf9kdn_T5yg').getSheetByName("Extra");
+  const values = sheet.getRange("H2:I" + sheet.getLastRow()).getValues();
+  return values
+    .filter(row => row[0]) // Only rows with non-empty column G
+    .map(row => ({
+      value: row[0],                  // e.g., Bank name or ID
+      label: `${row[0]} (${row[1]})`  // Display as "Name (Phone)" assuming phone is in column J
+    }));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
