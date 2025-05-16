@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+</head>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", callSectors);
+    function addNewSector() {
+      const newSectorName = document.getElementById('newSectorName').value.trim();
+      if (!newSectorName) {
+        showSectorNotice('Please input!', true);
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(response => {
+          const isError = response.includes("already exists");
+          showSectorNotice(response, isError);
+          if (!isError) {
+            document.getElementById("newSectorName").value = "";
+            callSectors();
+          }
+        })
+        .addNewSectorSave(newSectorName);
+    }
+    function callSectors() {
+      google.script.run.withSuccessHandler(datas => {
+        const select = document.getElementById('oldSectorName');
+        clearSectorDropdown();
+        datas.forEach(data => {
+          const option = document.createElement('option');
+          option.value = data;
+          option.textContent = data;
+          select.appendChild(option);
+        });
+      }).getSectors();
+    }
+    function showUpdateSectorInput() {
+      const selectValue = document.getElementById('oldSectorName').value;
+      const input = document.getElementById('updateSector');
+      const btn = document.getElementById('updateSectorBtn');
+
+
+      const visible = !!selectValue;
+      input.style.display = visible ? 'inline-block' : 'none';
+      btn.style.display = visible ? 'inline-block' : 'none';
+      document.getElementById('confirmBoxSector').style.display = 'none';
+    }
+    function updateSector() {
+      const updateValue = document.getElementById('updateSector').value.trim();
+      if (updateValue === "") {
+        showSectorNotice('Empty Value!', false);
+      }
+      document.getElementById('confirmBoxSector').style.display = 'block';
+    }
+
+
+    // Confirm update
+    function confirmSectorUpdate(confirm) {
+      const confirmBox = document.getElementById('confirmBoxSector');
+      if (confirm) {
+        const oldName = document.getElementById('oldSectorName').value;
+        const newName = document.getElementById('updateSector').value.trim();
+
+
+        if (oldName === newName) {
+          showSectorNotice('Available!', true);
+          confirmBox.style.display = 'none';
+          return;
+        }
+
+
+        google.script.run.withSuccessHandler(response => {
+          if (response === "Success") {
+            showSectorNotice('Successfully added!');
+            resetSectorForm();
+            callSectors();
+          } else {
+            showSectorNotice(response, true);
+          }
+        }).updateSectorRow(oldName, newName);
+      }
+      confirmBox.style.display = 'none';
+    }
+    function showSectorNotice(message, isError = false) {
+      const notice = document.getElementById('noticeSector');
+      notice.style.color = isError ? 'red' : 'green';
+      notice.textContent = message;
+      notice.style.display = 'block';
+      setTimeout(() => {
+        notice.style.display = 'none';
+      }, 3000);
+    }
+    function clearSectorDropdown() {
+      const select = document.getElementById('oldSectorName');
+      select.innerHTML = '<option value="">-- বাছাই করুন --</option>';
+    }
+    function resetSectorForm() {
+      document.getElementById('oldSectorName').value = "";
+      document.getElementById('updateSector').value = "";
+      document.getElementById('updateSector').style.display = 'none';
+      document.getElementById('updateSectorBtn').style.display = 'none';
+    }
+  </script>
+
+<body>
+<div id="sectorForm" style="display: none">
+  <h4>Field Manage</h4>
+  <input type="text" id="newSectorName" placeholder="Sector-Year" style="width: 120px">
+  <button onclick="addNewSector();">Add New</button>
+  <h4>Field Update</h4>
+  <select id="oldSectorName" onchange="showUpdateSectorInput()" style="width: 120px">
+    <option value="">-- বাছাই করুন --</option>
+  </select>
+  <input type="text" id="updateSector" style="display: none; width: 120px" placeholder="New or null">
+  <button id="updateSectorBtn" style="display: none" onclick="updateSector()">✔️</button>
+  <div id="confirmBoxSector" style="display: none; margin-top: 10px;">
+    <p style="color: red;">Are you sure?</p>
+    <button onclick="confirmSectorUpdate(true)">হ্যাঁ</button>
+    <button onclick="confirmSectorUpdate(false)">না</button>
+  </div>
+  <div id="noticeSector" style="color: green; margin-top: 10px; display: none;"></div><br>
+<button onclick="sectorForm('none')">Sector Close</button>
+</body>
+</html>
+
+
+
+
+
+
+
+
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('blank');
+}
+
+function addNewMonthSave(newName) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const column = 10; // Column J
+  const values = sheet.getRange("J2:J" + sheet.getLastRow()).getValues().flat();  
+  if (values.includes(newName)) {
+    return `"${newName}" already exists.`;  }
+  let nextRow = values.findIndex(name => !name);
+  nextRow = nextRow !== -1 ? nextRow + 2 : values.length + 2;
+  sheet.getRange(nextRow, column).setValue(newName);
+  return `"${newName}" ✅ Added successfully.`;
+}
+
+
+function getMonths() {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const data = sheet.getRange("J2:J" + sheet.getLastRow()).getValues();
+  return data.filter(row => row[0] !== "").map(row => row[0]);
+}
+
+function updateMonthRow(oldName, newName) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const dataRange = sheet.getRange("J2:J" + sheet.getLastRow());
+  const data = dataRange.getValues().map(row => row[0]);
+  // Allow empty newName, so only check if oldName === newName when both are non-empty strings
+  if (oldName === newName) {
+    return "Old & new is same!";
+  }
+  // Only check for duplicate if newName is non-empty
+  if (newName && data.includes(newName)) {
+    return "Available! " + newName;
+  }
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] === oldName) {
+      sheet.getRange(i + 2, 10).setValue(newName); // Column J
+      return "Success";
+    }
+  }
+  return "Not found!";
+}
+
+
+function addNewCTypeSave(newName) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const column = 5; // Column J
+  const values = sheet.getRange("E2:E" + sheet.getLastRow()).getValues().flat();  
+  if (values.includes(newName)) {
+    return `"${newName}" already exists.`;  }
+  let nextRow = values.findIndex(name => !name);
+  nextRow = nextRow !== -1 ? nextRow + 2 : values.length + 2;
+  sheet.getRange(nextRow, column).setValue(newName);
+  return `"${newName}" ✅ Added successfully.`;
+}
+
+function getCTypes() {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const data = sheet.getRange("E2:E" + sheet.getLastRow()).getValues();
+  return data.filter(row => row[0] !== "").map(row => row[0]);
+}
+
+function updateCTypeRow(oldName, newName) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const dataRange = sheet.getRange("E2:E" + sheet.getLastRow());
+  const data = dataRange.getValues().map(row => row[0]);
+  if (oldName === newName) {
+    return "Old & new is same!";
+  }
+  // Only check for duplicate if newName is non-empty
+  if (newName && data.includes(newName)) {
+    return "Available! " + newName;
+  }
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] === oldName) {
+      sheet.getRange(i + 2, 5).setValue(newName); // Column J
+      return "Success";
+    }
+  }
+  return "Not found!";
+}
+
+//-------------------------------------------------------------
+function addNewSubjectSave(newName) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const column = 6; // Column J
+  const values = sheet.getRange("F2:F" + sheet.getLastRow()).getValues().flat();  
+  if (values.includes(newName)) {
+    return `"${newName}" already exists.`;  }
+  let nextRow = values.findIndex(name => !name);
+  nextRow = nextRow !== -1 ? nextRow + 2 : values.length + 2;
+  sheet.getRange(nextRow, column).setValue(newName);
+  return `"${newName}" ✅ Added successfully.`;
+}
+
+function getSubjects() {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const data = sheet.getRange("F2:F" + sheet.getLastRow()).getValues();
+  return data.filter(row => row[0] !== "").map(row => row[0]);
+}
+
+function updateSubjectRow(oldName, newName) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const dataRange = sheet.getRange("F2:F" + sheet.getLastRow());
+  const data = dataRange.getValues().map(row => row[0]);
+  if (oldName === newName) {
+    return "Old & new is same!";
+  }
+  // Only check for duplicate if newName is non-empty
+  if (newName && data.includes(newName)) {
+    return "Available! " + newName;
+  }
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] === oldName) {
+      sheet.getRange(i + 2, 6).setValue(newName); // Column J
+      return "Success";
+    }
+  }
+  return "Not found!";
+}
+
+//-------------------------------------------------------------
+function addNewSectorSave(newName) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const column = 7;
+  const values = sheet.getRange("G2:G" + sheet.getLastRow()).getValues().flat();  
+  if (values.includes(newName)) {
+    return `"${newName}" already exists.`;  }
+  let nextRow = values.findIndex(name => !name);
+  nextRow = nextRow !== -1 ? nextRow + 2 : values.length + 2;
+  sheet.getRange(nextRow, column).setValue(newName);
+  return `"${newName}" ✅ Added successfully.`;
+}
+
+function getSectors() {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const data = sheet.getRange("G2:G" + sheet.getLastRow()).getValues();
+  return data.filter(row => row[0] !== "").map(row => row[0]);
+}
+
+function updateSectorRow(oldName, newName) {
+  const sheet = SpreadsheetApp.openById('').getSheetByName("Extra");
+  const dataRange = sheet.getRange("G2:G" + sheet.getLastRow());
+  const data = dataRange.getValues().map(row => row[0]);
+  if (oldName === newName) {
+    return "Old & new is same!";
+  }
+  // Only check for duplicate if newName is non-empty
+  if (newName && data.includes(newName)) {
+    return "Available! " + newName;
+  }
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] === oldName) {
+      sheet.getRange(i + 2, 7).setValue(newName);
+      return "Success";
+    }
+  }
+  return "Not found!";
+}
+
+
+
