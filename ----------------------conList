@@ -1,0 +1,192 @@
+//-----------------------
+function getContactList() {
+  const sheet = SpreadsheetApp.openById('')
+  .getSheetByName("Contact");
+  const startRow = 2;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < startRow) return [];
+  const data = sheet.getRange("A" + startRow + ":Q" + lastRow).getValues();
+  const dataWithRowNumbers = data
+    .map((row, index) => {
+      if (row.join("").trim() !== "") {
+        return {
+          rowNum: startRow + index,
+          data: row
+        };
+      }
+      return null;
+    })
+    .filter(item => item !== null);
+  dataWithRowNumbers.sort((a, b) => b.rowNum - a.rowNum);
+  return dataWithRowNumbers;
+}
+
+function deleteContact(rowNum) {
+  const sheet = SpreadsheetApp.openById('')
+  .getSheetByName("Contact");
+  sheet.deleteRow(rowNum);
+  return "Contact deleted successfully.";
+}
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      .entry-row {
+        margin-bottom: 5px;
+      }
+      .entry-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+      }
+      .entry-details {
+        width: 270px;
+        text-align: left;
+        font-size: 11px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 2px 4px;
+      }
+      #notice {
+        display: none;
+        padding: 5px;
+        margin: 10px 0;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      #notice.success {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      #notice.error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+
+      /* Inline confirmation popup styles */
+      .confirm-popup {
+        margin-top: 5px;
+        padding: 5px;
+        border: 1px solid #ccc;
+        background-color: #fff;
+        border-radius: 5px;
+        font-size: 11px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+      }
+      .confirm-popup div {
+        margin-bottom: 6px;
+      }
+      .confirm-popup button {
+        margin-right: 5px;
+        padding: 2px 6px;
+        font-size: 11px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .confirm-popup button.confirm-yes {
+        background-color: #dc3545;
+        color: white;
+      }
+      .confirm-popup button.confirm-no {
+        background-color: #6c757d;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="notice"></div>
+    <div id="ContactListData" style="width: 320px; padding: 5px;"></div>
+
+    <script>
+      function showNotice(message, isSuccess = true) {
+        const notice = document.getElementById("notice");
+        notice.innerText = message;
+        notice.className = isSuccess ? "success" : "error";
+        notice.style.display = "block";
+        setTimeout(() => {
+          notice.style.display = "none";
+        }, 3000);
+      }
+
+      function loadContactList() {
+        const container = document.getElementById("ContactListData");
+        container.innerHTML = "<div>Loading ...</div>";
+
+        google.script.run.withSuccessHandler(entries => {
+          container.innerHTML = "";
+
+          entries.forEach((entry, index) => {
+            const rowNumber = entry.rowNum;
+            const values = entry.data;
+
+            const entryItem = document.createElement("div");
+            entryItem.className = "entry-row";
+            entryItem.innerHTML = `
+              <div class="entry-item">
+                <div style="width: 30px; text-align: center;">${index + 1}</div>
+                <span class="entry-details">
+                  ${values.slice(0, 17).filter(v => v).join(" ")}
+                </span>
+                <button class="btn btn-delete" data-row="${rowNumber}">🗑️</button>
+              </div>
+            `;
+
+            container.appendChild(entryItem);
+          });
+        }).getContactList();
+      }
+
+      function deleteContactHandler(rowIndex, clickedButton) {
+        const contactDiv = clickedButton.closest(".entry-row");
+        const contactText = contactDiv.querySelector(".entry-details").innerText;
+
+        // Remove any existing confirmation popup inside this row
+        const existingConfirm = contactDiv.querySelector(".confirm-popup");
+        if (existingConfirm) {
+          existingConfirm.remove();
+        }
+
+        // Create confirmation popup element
+        const confirmPopup = document.createElement("div");
+        confirmPopup.className = "confirm-popup";
+        confirmPopup.innerHTML = `
+          <div>Are you sure you want to delete this contact?<br><small>${contactText}</small></div>
+          <button class="confirm-yes">Yes</button>
+          <button class="confirm-no">Cancel</button>
+        `;
+
+        contactDiv.appendChild(confirmPopup);
+
+        const yesBtn = confirmPopup.querySelector(".confirm-yes");
+        const noBtn = confirmPopup.querySelector(".confirm-no");
+
+        yesBtn.onclick = () => {
+          google.script.run.withSuccessHandler(response => {
+            showNotice(response, true);
+            loadContactList();
+          }).deleteContact(Number(rowIndex));
+        };
+
+        noBtn.onclick = () => {
+          confirmPopup.remove();
+        };
+      }
+
+      document.addEventListener("click", function (e) {
+        if (e.target.classList.contains("btn-delete")) {
+          const rowIndex = e.target.dataset.row;
+          deleteContactHandler(rowIndex, e.target);
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        loadContactList();
+      });
+    </script>
+  </body>
+</html>
