@@ -67,7 +67,6 @@ function deleteContact(rowNum) {
         color: #721c24;
       }
 
-      /* Inline confirmation popup styles */
       .confirm-popup {
         margin-top: 5px;
         padding: 5px;
@@ -100,9 +99,18 @@ function deleteContact(rowNum) {
   </head>
   <body>
     <div id="notice"></div>
+    <input
+      type="text"
+      id="searchContactListValue"
+      placeholder="by name"
+      oninput="searchContactList()" 
+      style="width: 150px;"
+    />
     <div id="ContactListData" style="width: 320px; padding: 5px;"></div>
 
     <script>
+      let allContacts = []; // store all contact entries for filtering
+
       function showNotice(message, isSuccess = true) {
         const notice = document.getElementById("notice");
         notice.innerText = message;
@@ -118,40 +126,54 @@ function deleteContact(rowNum) {
         container.innerHTML = "<div>Loading ...</div>";
 
         google.script.run.withSuccessHandler(entries => {
-          container.innerHTML = "";
-
-          entries.forEach((entry, index) => {
-            const rowNumber = entry.rowNum;
-            const values = entry.data;
-
-            const entryItem = document.createElement("div");
-            entryItem.className = "entry-row";
-            entryItem.innerHTML = `
-              <div class="entry-item">
-                <div style="width: 30px; text-align: center;">${index + 1}</div>
-                <span class="entry-details">
-                  ${values.slice(0, 17).filter(v => v).join(" ")}
-                </span>
-                <button class="btn btn-delete" data-row="${rowNumber}">🗑️</button>
-              </div>
-            `;
-
-            container.appendChild(entryItem);
-          });
+          allContacts = entries; // store all entries globally
+          displayContacts(entries);
         }).getContactList();
+      }
+
+      function displayContacts(entries) {
+        const container = document.getElementById("ContactListData");
+        container.innerHTML = "";
+
+        entries.forEach((entry, index) => {
+          const rowNumber = entry.rowNum;
+          const values = entry.data;
+
+          const entryItem = document.createElement("div");
+          entryItem.className = "entry-row";
+          entryItem.innerHTML = `
+            <div class="entry-item">
+              <div style="width: 30px; text-align: center;">${index + 1}</div>
+              <span class="entry-details">
+                ${values.slice(0, 17).filter(v => v).join(" ")}
+              </span>
+              <button class="btn btn-delete" data-row="${rowNumber}">🗑️</button>
+            </div>
+          `;
+
+          container.appendChild(entryItem);
+        });
+      }
+
+      function searchContactList() {
+        const searchValue = document.getElementById("searchContactListValue").value.toLowerCase().trim();
+
+        const filtered = allContacts.filter(entry =>
+          entry.data.some(value => value && value.toLowerCase().includes(searchValue))
+        );
+
+        displayContacts(filtered);
       }
 
       function deleteContactHandler(rowIndex, clickedButton) {
         const contactDiv = clickedButton.closest(".entry-row");
         const contactText = contactDiv.querySelector(".entry-details").innerText;
 
-        // Remove any existing confirmation popup inside this row
         const existingConfirm = contactDiv.querySelector(".confirm-popup");
         if (existingConfirm) {
           existingConfirm.remove();
         }
 
-        // Create confirmation popup element
         const confirmPopup = document.createElement("div");
         confirmPopup.className = "confirm-popup";
         confirmPopup.innerHTML = `
