@@ -1,0 +1,19 @@
+<!-- Button to trigger JPG export -->
+<button onclick="invJPG()">Print</button>
+<!-- Include html2canvas -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+  function invJPG() {
+    const invoiceBoxes = document.querySelectorAll('.invoice-box');
+  invoiceBoxes.forEach((box, index) => {
+    html2canvas(box).then(canvas => {
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const invNumber = box.querySelector('#invNumber')?.value.trim() || `Invoice_${index + 1}`;
+      const link = document.createElement('a');
+      link.download = `${invNumber}.jpg`;
+      link.href = imgData;
+      link.click();
+    });
+  });
+  }
+</script>
