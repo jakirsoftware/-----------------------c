@@ -1,0 +1,31 @@
+  <button onclick="invPDF()">Print</button>
+
+<script>
+async function invPDF() {
+  const invoiceBoxes = document.querySelectorAll('.invoice-box');
+
+  for (let index = 0; index < invoiceBoxes.length; index++) {
+    const box = invoiceBoxes[index];
+    const invNumber = box.querySelector('#invNumber')?.value.trim() || `Invoice_${index + 1}`;
+    const opt = {
+      margin:       0.5,
+      filename:     `${invNumber}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    const pdfBlob = await html2pdf().set(opt).from(box).outputPdf('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = opt.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url, '_blank');
+  }
+}
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
