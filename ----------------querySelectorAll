@@ -1,0 +1,12 @@
+  <script>
+document.addEventListener("DOMContentLoaded", () => {
+  const today = new Date().toISOString().split("T")[0];
+  const todayElements = document.querySelectorAll(".today");
+  todayElements.forEach(el => {
+    el.textContent = today;
+  });
+});
+</script>
+
+querySelectorAll
+class="today"
