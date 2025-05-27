@@ -18,5 +18,21 @@ or
   document.querySelector('.today').textContent = formattedDate;
 </script>
 
+or
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const year = d.getFullYear();
+    const today = `${day}-${month}-${year}`;    
+    const todayElements = document.querySelectorAll(".today");
+    todayElements.forEach(el => {
+      el.textContent = today;
+    });
+  });
+</script>
+
 querySelectorAll
 class="today"
